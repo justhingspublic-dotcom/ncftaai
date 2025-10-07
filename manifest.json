@@ -1,0 +1,26 @@
+{
+  "name": "傳藝園區AI小幫手",
+  "short_name": "傳藝AI",
+  "description": "宜蘭傳藝園區智能導覽助理",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#C94A47",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "3c25cb87ae.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["travel", "tourism", "culture"],
+  "lang": "zh-TW"
+}
