@@ -66,14 +66,15 @@ body {
     left: 0;
     right: 0;
     height: 64px;
-    background: var(--header-bg);
+    background: rgba(201, 74, 71, 0.98);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 0 var(--spacing-lg);
-    box-shadow: 0 1px 3px var(--shadow-light);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     z-index: 1000;
     transition: all var(--transition-normal);
 }
@@ -133,8 +134,7 @@ body {
 
 /* ==================== Chat Container ==================== */
 .chat-container {
-    max-width: 800px;
-    margin: 0 auto;
+    margin: 0;
     padding: var(--spacing-lg);
     padding-bottom: 250px;
     display: flex;
@@ -286,11 +286,12 @@ body {
     overflow-x: auto;
     overflow-y: visible;
     padding: var(--spacing-md) var(--spacing-lg);
-    margin: var(--spacing-sm) calc(-1 * var(--spacing-lg)) 0;
+    margin: var(--spacing-sm) 0 0;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
     animation: fadeInUp 0.5s ease 0.2s both;
 }
+
 
 .category-cards-container::-webkit-scrollbar {
     display: none;
@@ -411,10 +412,8 @@ body {
 .input-container {
     position: fixed;
     bottom: var(--spacing-md);
-    left: 50%;
-    transform: translateX(-50%);
-    max-width: 800px;
-    width: calc(100% - var(--spacing-lg) * 2);
+    left: var(--spacing-lg);
+    right: var(--spacing-lg);
     background: rgba(255, 255, 255, 0.7);
     backdrop-filter: blur(30px);
     -webkit-backdrop-filter: blur(30px);
@@ -685,7 +684,8 @@ html,
     }
     
     .input-container {
-        width: calc(100% - var(--spacing-md) * 2);
+        left: var(--spacing-md);
+        right: var(--spacing-md);
         padding: var(--spacing-sm);
     }
     
@@ -779,7 +779,8 @@ html,
     }
     
     .input-container {
-        width: calc(100% - var(--spacing-sm) * 2);
+        left: var(--spacing-sm);
+        right: var(--spacing-sm);
         bottom: var(--spacing-sm);
         padding: var(--spacing-xs);
     }
