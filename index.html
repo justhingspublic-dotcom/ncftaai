@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宜蘭傳藝園區 AI 導覽助理</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">
+                <img src="logo.png" alt="宜蘭傳藝園區" class="logo-img">
+            </div>
+        </div>
+        <div class="header-right">
+            <button class="header-btn" id="voiceToggle" title="語音開關">
+                <span class="material-symbols-outlined">volume_up</span>
+            </button>
+            <button class="header-btn" id="textSizeToggle" title="文字大小">
+                <span class="material-symbols-outlined">format_size</span>
+            </button>
+            <button class="header-btn" id="langToggle" title="語言切換">
+                <span class="material-symbols-outlined">language</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-container">
+        <!-- Chat Messages Area -->
+        <div class="chat-container" id="chatContainer">
+            <!-- Welcome Message -->
+            <div class="message-group assistant-group">
+                <div class="message-avatar">
+                    <img src="3c25cb87ae.png" alt="AI助理" class="avatar-img">
+                </div>
+                <div class="message-content">
+                    <div class="message-bubble assistant-bubble">
+                        歡迎來到宜蘭傳藝園區！我可以協助您了解展覽資訊、交通方式、當期表演等內容。
+                    </div>
+                </div>
+            </div>
+
+            <!-- Suggestion Cards -->
+            <div class="category-cards-container" id="suggestionCards">
+                <!-- 展覽資訊 -->
+                <div class="category-card">
+                    <div class="card-image" style="background: #C94A47;">
+                        <img src="展覽.png" alt="展覽" class="card-image-icon">
+                    </div>
+                    <h3 class="card-category-title">展覽訊息</h3>
+                    <div class="card-options">
+                        <button class="option-btn" data-action="renovation">全聯善美的建築整修計畫</button>
+                        <button class="option-btn" data-action="craftsman">小小職人展-工藝上菜</button>
+                        <button class="option-btn" data-action="scholar">舉人之力</button>
+                    </div>
+                </div>
+
+                <!-- 參觀資訊 -->
+                <div class="category-card">
+                    <div class="card-image" style="background: #C94A47;">
+                        <img src="參觀資訊.png" alt="參觀資訊" class="card-image-icon">
+                    </div>
+                    <h3 class="card-category-title">參觀資訊</h3>
+                    <div class="card-options">
+                        <button class="option-btn" data-action="tickets">票價與地圖</button>
+                        <button class="option-btn" data-action="traffic">交通資訊</button>
+                        <button class="option-btn" data-action="facilities">設施時間</button>
+                    </div>
+                </div>
+
+                <!-- 當期演出 -->
+                <div class="category-card">
+                    <div class="card-image" style="background: #C94A47;">
+                        <img src="表演.png" alt="表演" class="card-image-icon">
+                    </div>
+                    <h3 class="card-category-title">當期演出</h3>
+                    <div class="card-options">
+                        <button class="option-btn" data-action="performance1">齊天大聖鬧龍宮</button>
+                        <button class="option-btn" data-action="performance2">接班人好戲台</button>
+                        <button class="option-btn" data-action="performance3">臺鼓晨鐘</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scroll to Bottom Button -->
+    <button class="scroll-to-bottom-btn hidden" id="scrollToBottomBtn" title="回到最底">
+        <span class="material-symbols-outlined">arrow_downward</span>
+    </button>
+
+    <!-- Input Area -->
+    <div class="input-container">
+        <button class="voice-button" id="voiceButton" title="語音輸入">
+            <span class="material-symbols-outlined">mic</span>
+        </button>
+        <div class="input-wrapper">
+            <button class="info-button" id="infoButton" title="顯示建議">
+                <span class="material-symbols-outlined">info</span>
+                <span class="info-button-text">園區資訊</span>
+            </button>
+            <input 
+                type="text" 
+                class="message-input" 
+                id="messageInput" 
+                placeholder="語音辨識內容將顯示於此" 
+                readonly
+            >
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
+
