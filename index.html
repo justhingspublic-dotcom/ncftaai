@@ -44,8 +44,14 @@
             <button class="header-btn" id="textSizeToggle" title="文字大小">
                 <span class="material-symbols-outlined">format_size</span>
             </button>
+            <button class="header-btn" id="typingToggle" title="開啟打字">
+                <span class="material-symbols-outlined">keyboard</span>
+            </button>
             <button class="header-btn" id="langToggle" title="語言切換">
-                <span class="material-symbols-outlined">language</span>
+                <span class="lang-text">中</span>
+            </button>
+            <button class="header-btn" id="clearChatBtn" title="清空對話">
+                <span class="material-symbols-outlined">refresh</span>
             </button>
         </div>
     </header>
@@ -61,7 +67,7 @@
                 </div>
                 <div class="message-content">
                     <div class="message-bubble assistant-bubble">
-                        歡迎來到宜蘭傳藝園區！我可以協助您了解展覽資訊、交通方式、當期表演等內容。
+                        <span id="welcomeMessage">歡迎來到宜蘭傳藝園區！我可以協助您了解展覽資訊、交通方式、當期表演等內容。</span>
                     </div>
                 </div>
             </div>
@@ -69,7 +75,7 @@
             <!-- Suggestion Cards -->
             <div class="category-cards-container" id="suggestionCards">
                 <!-- 展覽資訊 -->
-                <div class="category-card">
+                <div class="category-card" data-category="exhibitions">
                     <div class="card-image" style="background: #C94A47;">
                         <img src="展覽.png" alt="展覽" class="card-image-icon">
                     </div>
@@ -82,7 +88,7 @@
                 </div>
 
                 <!-- 參觀資訊 -->
-                <div class="category-card">
+                <div class="category-card" data-category="visit">
                     <div class="card-image" style="background: #C94A47;">
                         <img src="參觀資訊.png" alt="參觀資訊" class="card-image-icon">
                     </div>
@@ -95,7 +101,7 @@
                 </div>
 
                 <!-- 當期演出 -->
-                <div class="category-card">
+                <div class="category-card" data-category="performance">
                     <div class="card-image" style="background: #C94A47;">
                         <img src="表演.png" alt="表演" class="card-image-icon">
                     </div>
@@ -110,6 +116,28 @@
         </div>
     </main>
 
+    <!-- Language Selector Modal -->
+    <div class="language-modal hidden" id="languageModal">
+        <div class="language-modal-content">
+            <button class="language-option" data-lang="zh-TW">
+                <span class="language-icon">中</span>
+                <span class="language-name">繁體中文</span>
+            </button>
+            <button class="language-option" data-lang="en">
+                <span class="language-icon">A</span>
+                <span class="language-name">English</span>
+            </button>
+            <button class="language-option" data-lang="ja">
+                <span class="language-icon">あ</span>
+                <span class="language-name">日本語</span>
+            </button>
+            <button class="language-option" data-lang="ko">
+                <span class="language-icon">한</span>
+                <span class="language-name">한국어</span>
+            </button>
+        </div>
+    </div>
+
     <!-- Scroll to Bottom Button -->
     <button class="scroll-to-bottom-btn hidden" id="scrollToBottomBtn" title="回到最底">
         <span class="material-symbols-outlined">arrow_downward</span>
@@ -123,7 +151,7 @@
         <div class="input-wrapper">
             <button class="info-button" id="infoButton" title="顯示建議">
                 <span class="material-symbols-outlined">info</span>
-                <span class="info-button-text">園區資訊</span>
+                <span class="info-button-text" id="infoButtonText">園區資訊</span>
             </button>
             <input 
                 type="text" 
@@ -138,5 +166,4 @@
     <script src="script.js?v=1.0.1"></script>
 </body>
 </html>
-
 

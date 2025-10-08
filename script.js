@@ -4,6 +4,7 @@ const state = {
     textSize: 'small', // 'small', 'medium', 'large'
     isVoiceEnabled: true,
     currentLang: 'zh-TW',
+    isTypingEnabled: false,
     recognition: null,
     finalTranscript: '' // 保存已確定的語音識別結果
 };
@@ -16,9 +17,165 @@ const elements = {
     suggestionCards: document.getElementById('suggestionCards'),
     textSizeToggle: document.getElementById('textSizeToggle'),
     voiceToggle: document.getElementById('voiceToggle'),
+    typingToggle: document.getElementById('typingToggle'),
     langToggle: document.getElementById('langToggle'),
     scrollToBottomBtn: document.getElementById('scrollToBottomBtn'),
-    infoButton: document.getElementById('infoButton')
+    infoButton: document.getElementById('infoButton'),
+    infoButtonText: document.getElementById('infoButtonText'),
+    welcomeMessage: document.getElementById('welcomeMessage'),
+    languageModal: document.getElementById('languageModal'),
+    clearChatBtn: document.getElementById('clearChatBtn')
+};
+
+// ==================== Language Icons ====================
+const languageIcons = {
+    'zh-TW': '中',
+    'en': 'A',
+    'ja': 'あ',
+    'ko': '한'
+};
+
+// ==================== Speech Recognition Language Codes ====================
+const speechRecognitionLangCodes = {
+    'zh-TW': 'zh-TW',
+    'en': 'en-US',
+    'ja': 'ja-JP',
+    'ko': 'ko-KR'
+};
+
+// ==================== Category Configuration ====================
+const categoryConfig = [
+    {
+        id: 'exhibitions',
+        image: '展覽.png',
+        options: ['renovation', 'craftsman', 'scholar']
+    },
+    {
+        id: 'visit',
+        image: '參觀資訊.png',
+        options: ['tickets', 'traffic', 'facilities']
+    },
+    {
+        id: 'performance',
+        image: '表演.png',
+        options: ['performance1', 'performance2', 'performance3']
+    }
+];
+
+// ==================== UI Text ====================
+const uiText = {
+    'zh-TW': {
+        welcome: '歡迎來到宜蘭傳藝園區！我可以協助您了解展覽資訊、交通方式、當期表演等內容。',
+        infoButton: '園區資訊',
+        infoButtonTitle: '顯示建議',
+        inputPlaceholder: {
+            idle: '語音辨識內容將顯示於此',
+            listening: '請說出您的問題...',
+            typing: '請輸入您的問題'
+        },
+        clarifyPrompt: '請清楚說出您的問題',
+        speechUnsupported: '您的瀏覽器不支援語音辨識功能',
+        typingToggle: {
+            enable: '開啟打字',
+            disable: '關閉打字'
+        },
+        header: {
+            voiceToggle: '語音開關',
+            textSizeToggle: '文字大小',
+            langToggle: '語言切換',
+            clearChat: '清空對話'
+        },
+        categories: {
+            exhibitions: { title: '展覽訊息', imageAlt: '展覽' },
+            visit: { title: '參觀資訊', imageAlt: '參觀資訊' },
+            performance: { title: '當期演出', imageAlt: '表演' }
+        },
+        defaultResponse: '我可以協助您了解展覽資訊、交通方式、當期表演等內容，請選擇您想了解的項目。'
+    },
+    en: {
+        welcome: 'Welcome to the National Center for Traditional Arts! I can help with exhibitions, transportation, performances, and more.',
+        infoButton: 'Park Info',
+        infoButtonTitle: 'Show suggestions',
+        inputPlaceholder: {
+            idle: 'Voice recognition will be displayed here',
+            listening: 'Please speak your question...',
+            typing: 'Type your question here'
+        },
+        clarifyPrompt: 'Please speak clearly',
+        speechUnsupported: 'Your browser does not support speech recognition',
+        typingToggle: {
+            enable: 'Enable typing',
+            disable: 'Disable typing'
+        },
+        header: {
+            voiceToggle: 'Voice toggle',
+            textSizeToggle: 'Text size',
+            langToggle: 'Switch language',
+            clearChat: 'Clear chat'
+        },
+        categories: {
+            exhibitions: { title: 'Exhibitions', imageAlt: 'Exhibitions' },
+            visit: { title: 'Visitor Info', imageAlt: 'Visitor Information' },
+            performance: { title: 'Performances', imageAlt: 'Performances' }
+        },
+        defaultResponse: 'I can guide you through exhibitions, transportation, performances, and more. Please choose a topic you are interested in.'
+    },
+    'ja': {
+        welcome: '国立伝統芸術センターへようこそ！展覧会、交通、公演などについてご案内いたします。',
+        infoButton: '園区情報',
+        infoButtonTitle: '提案を表示',
+        inputPlaceholder: {
+            idle: '音声認識の内容がここに表示されます',
+            listening: 'ご質問をお話しください...',
+            typing: 'ご質問を入力してください'
+        },
+        clarifyPrompt: 'はっきりとお話しください',
+        speechUnsupported: 'お使いのブラウザは音声認識に対応していません',
+        typingToggle: {
+            enable: '入力を有効',
+            disable: '入力を無効'
+        },
+        header: {
+            voiceToggle: '音声切替',
+            textSizeToggle: '文字サイズ',
+            langToggle: '言語切替',
+            clearChat: 'チャットをクリア'
+        },
+        categories: {
+            exhibitions: { title: '展覧会情報', imageAlt: '展覧会' },
+            visit: { title: '参観情報', imageAlt: '参観情報' },
+            performance: { title: '公演情報', imageAlt: '公演' }
+        },
+        defaultResponse: '展覧会、交通、公演などについてご案内いたします。興味のある項目をお選びください。'
+    },
+    'ko': {
+        welcome: '국립전통예술센터에 오신 것을 환영합니다! 전시, 교통, 공연 등에 대해 안내해 드리겠습니다.',
+        infoButton: '원구정보',
+        infoButtonTitle: '제안 표시',
+        inputPlaceholder: {
+            idle: '음성 인식 내용이 여기에 표시됩니다',
+            listening: '질문을 말씀해 주세요...',
+            typing: '질문을 입력해 주세요'
+        },
+        clarifyPrompt: '명확하게 말씀해 주세요',
+        speechUnsupported: '브라우저가 음성 인식을 지원하지 않습니다',
+        typingToggle: {
+            enable: '입력 활성화',
+            disable: '입력 비활성화'
+        },
+        header: {
+            voiceToggle: '음성 전환',
+            textSizeToggle: '글자 크기',
+            langToggle: '언어 전환',
+            clearChat: '대화 지우기'
+        },
+        categories: {
+            exhibitions: { title: '전시 정보', imageAlt: '전시' },
+            visit: { title: '관람 정보', imageAlt: '관람 정보' },
+            performance: { title: '공연 정보', imageAlt: '공연' }
+        },
+        defaultResponse: '전시, 교통, 공연 등에 대해 안내해 드립니다. 관심 있는 항목을 선택해 주세요.'
+    }
 };
 
 // ==================== Content Data ====================
@@ -98,20 +255,208 @@ const contentData = {
             title: 'Scholar Power',
             response: 'Exhibition introducing the imperial examination system and traditional literati culture through artifacts and interactive displays.'
         }
+    },
+    'ja': {
+        tickets: {
+            title: 'チケット・地図',
+            response: '一般券150元、優待券120元。現地購入またはオンライン予約可能。電子チケットで迅速入園。地図はサービスセンターで入手できます。'
+        },
+        traffic: {
+            title: '交通情報',
+            response: '国道バスまたは台鉄で羅東駅まで行き、621、621Aバスに乗り換えて直接園区へ。車の場合は「宜蘭伝統芸術園区」でナビ設定。駐車場完備。'
+        },
+        facilities: {
+            title: '施設時間',
+            response: '園区開放時間：毎日9:00-18:00。各展示館と施設の開放時間は異なる場合があります。詳細はサービスセンターまで。'
+        },
+        performance1: {
+            title: '斉天大聖鬧龍宮',
+            response: '伝統演劇と現代舞台技術を組み合わせた園区の名作で、孫悟空が龍宮で大暴れする物語を見事に演出。上演時間は当期プログラムをご参照ください。'
+        },
+        performance2: {
+            title: '後継者舞台',
+            response: '新世代の演者を育成し、伝統技芸の継承と革新を披露。週末定期公演を行っています。'
+        },
+        performance3: {
+            title: '台湾太鼓朝の鐘',
+            response: '園区の朝の儀式公演で、伝統の太鼓で一日の幕開けを飾り、伝統芸術の荘厳さと活力を示します。'
+        },
+        renovation: {
+            title: '建築修復計画',
+            response: '園区内の歴史的価値のある伝統建築の保存と修復に取り組み、文化遺産の持続可能な継承を目指しています。'
+        },
+        craftsman: {
+            title: '小さな職人展',
+            response: '食べ物をテーマに、伝統工芸技法を組み合わせ、台湾の飲食文化と工芸美学の完璧な融合を表現。'
+        },
+        scholar: {
+            title: '挙人の力',
+            response: '科挙制度と伝統文人文化を紹介する展覧会。文物とインタラクティブ展示を通じて、古代の読書人の奮闘の歴史を理解できます。'
+        }
+    },
+    'ko': {
+        tickets: {
+            title: '티켓 및 지도',
+            response: '일반권 150원, 우대권 120원. 현장 구매 또는 온라인 예약 가능. 전자 티켓으로 빠른 입장. 지도는 서비스 센터에서 받으실 수 있습니다.'
+        },
+        traffic: {
+            title: '교통 정보',
+            response: '국도 버스 또는 대만철도로 뤄둥역까지 가서 621, 621A 버스로 환승하여 원구까지 직접 이동. 자차로 오시는 경우 "이란전통예술원구"로 내비게이션 설정. 주차장 완비.'
+        },
+        facilities: {
+            title: '시설 시간',
+            response: '원구 개방 시간: 매일 9:00-18:00. 각 전시관과 시설의 개방 시간은 다를 수 있습니다. 자세한 내용은 서비스 센터에 문의하세요.'
+        },
+        performance1: {
+            title: '제천대성요용궁',
+            response: '전통 연극과 현대 무대 기술을 결합한 원구의 대표 공연으로, 손오공이 용궁에서 난동을 피우는 이야기를 훌륭하게 연출. 공연 시간은 당기 프로그램을 참조하세요.'
+        },
+        performance2: {
+            title: '후계자 무대',
+            response: '신세대 공연자를 육성하고 전통 기예의 계승과 혁신을 선보입니다. 주말 정기 공연 진행.'
+        },
+        performance3: {
+            title: '대만북 아침 종',
+            response: '원구의 아침 의식 공연으로, 전통 북으로 하루의 시작을 알리며 전통 예술의 장엄함과 활력을 보여줍니다.'
+        },
+        renovation: {
+            title: '건축 복원 계획',
+            response: '원구 내 역사적 가치가 있는 전통 건축의 보존과 복원에 전념하여 문화 유산의 지속 가능한 계승을 도모합니다.'
+        },
+        craftsman: {
+            title: '작은 장인 전시',
+            response: '음식을 주제로 전통 공예 기법을 결합하여 대만 음식 문화와 공예 미학의 완벽한 융합을 표현합니다.'
+        },
+        scholar: {
+            title: '거인의 힘',
+            response: '과거제도와 전통 문인 문화를 소개하는 전시회. 문물과 인터랙티브 전시를 통해 고대 독서인의 분투 역사를 이해할 수 있습니다.'
+        }
     }
 };
 
+// ==================== Category Rendering ====================
+function createCategoryCard(category, lang) {
+    const categoryText = uiText[lang].categories[category.id];
+    const card = document.createElement('div');
+    card.className = 'category-card';
+    card.dataset.category = category.id;
+
+    const imageWrapper = document.createElement('div');
+    imageWrapper.className = 'card-image';
+    imageWrapper.style.background = '#C94A47';
+
+    const image = document.createElement('img');
+    image.src = category.image;
+    image.alt = categoryText.imageAlt;
+    image.className = 'card-image-icon';
+    imageWrapper.appendChild(image);
+
+    const title = document.createElement('h3');
+    title.className = 'card-category-title';
+    title.textContent = categoryText.title;
+
+    const optionsContainer = document.createElement('div');
+    optionsContainer.className = 'card-options';
+
+    category.options.forEach(action => {
+        const button = document.createElement('button');
+        button.className = 'option-btn';
+        button.dataset.action = action;
+        button.textContent = contentData[lang][action].title;
+        button.addEventListener('click', () => {
+            const content = contentData[state.currentLang][action];
+            if (content) {
+                handleCardClick(content.title, content.response);
+            }
+        });
+        optionsContainer.appendChild(button);
+    });
+
+    card.appendChild(imageWrapper);
+    card.appendChild(title);
+    card.appendChild(optionsContainer);
+
+    return card;
+}
+
+function populateCategoryCards(container, lang = state.currentLang) {
+    container.innerHTML = '';
+    categoryConfig.forEach(category => {
+        const cardElement = createCategoryCard(category, lang);
+        container.appendChild(cardElement);
+    });
+}
+
+function getPlaceholderKey() {
+    if (state.isListening) {
+        return 'listening';
+    }
+    if (state.isTypingEnabled) {
+        return 'typing';
+    }
+    return 'idle';
+}
+
+function applyMessagePlaceholder() {
+    const placeholders = uiText[state.currentLang].inputPlaceholder;
+    elements.messageInput.placeholder = placeholders[getPlaceholderKey()];
+}
+
+function setTemporaryPlaceholder(mode) {
+    const placeholders = uiText[state.currentLang].inputPlaceholder;
+    elements.messageInput.placeholder = placeholders[mode] || placeholders.idle;
+}
+
+function updateVoiceButtonAppearance() {
+    const icon = elements.voiceButton.querySelector('.material-symbols-outlined');
+    if (!icon) {
+        return;
+    }
+
+    if (state.isTypingEnabled) {
+        const hasText = elements.messageInput.value.trim().length > 0;
+        elements.voiceButton.classList.toggle('listening', hasText);
+        icon.textContent = hasText ? 'send' : 'keyboard';
+        return;
+    }
+
+    if (state.isListening) {
+        const hasText = elements.messageInput.value.trim().length > 0;
+        if (hasText) {
+            elements.voiceButton.classList.add('listening');
+            icon.textContent = 'send';
+        } else {
+            elements.voiceButton.classList.remove('listening');
+            icon.textContent = 'stop';
+        }
+    } else {
+        elements.voiceButton.classList.remove('listening');
+        icon.textContent = 'mic';
+    }
+}
+
 // ==================== Initialization ====================
 function init() {
+    populateCategoryCards(elements.suggestionCards, state.currentLang);
     setupEventListeners();
     setupSpeechRecognition();
     loadPreferences();
+    updateUILanguage();
+    updateVoiceButtonAppearance();
+    
+    // 確保語音列表已載入（某些瀏覽器需要等待）
+    if ('speechSynthesis' in window) {
+        speechSynthesis.getVoices();
+        window.speechSynthesis.onvoiceschanged = () => {
+            speechSynthesis.getVoices();
+        };
+    }
 }
 
 // ==================== Event Listeners ====================
 function setupEventListeners() {
-    // Voice button
-    elements.voiceButton.addEventListener('click', toggleListening);
+    // Voice / send button
+    elements.voiceButton.addEventListener('click', handleVoiceButtonClick);
     
     // Text size toggle
     elements.textSizeToggle.addEventListener('click', toggleTextSize);
@@ -119,8 +464,31 @@ function setupEventListeners() {
     // Voice toggle
     elements.voiceToggle.addEventListener('click', toggleVoiceEnabled);
     
-    // Language toggle
-    elements.langToggle.addEventListener('click', toggleLanguage);
+    // Typing toggle
+    elements.typingToggle.addEventListener('click', toggleTypingMode);
+    
+    // Language toggle - open modal
+    elements.langToggle.addEventListener('click', openLanguageModal);
+    
+    // Language modal close on outside click
+    elements.languageModal.addEventListener('click', (e) => {
+        if (e.target === elements.languageModal) {
+            closeLanguageModal();
+        }
+    });
+    
+    // Language option clicks
+    const languageOptions = document.querySelectorAll('.language-option');
+    languageOptions.forEach(option => {
+        option.addEventListener('click', () => {
+            const lang = option.dataset.lang;
+            selectLanguage(lang);
+            closeLanguageModal();
+        });
+    });
+    
+    // Clear chat button
+    elements.clearChatBtn.addEventListener('click', clearChat);
     
     // Scroll to bottom button
     elements.scrollToBottomBtn.addEventListener('click', () => {
@@ -132,20 +500,22 @@ function setupEventListeners() {
         addSuggestionCardsToChat();
     });
     
+    // Manual input events
+    elements.messageInput.addEventListener('input', () => {
+        if (state.isTypingEnabled) {
+            updateVoiceButtonAppearance();
+        }
+    });
+    
+    elements.messageInput.addEventListener('keydown', (event) => {
+        if (state.isTypingEnabled && event.key === 'Enter') {
+            event.preventDefault();
+            sendTypedMessage();
+        }
+    });
+    
     // Scroll event listener
     window.addEventListener('scroll', handleScroll);
-    
-    // Option buttons
-    const optionButtons = document.querySelectorAll('.option-btn');
-    optionButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const action = btn.dataset.action;
-            const content = contentData[state.currentLang][action];
-            if (content) {
-                handleCardClick(content.title, content.response);
-            }
-        });
-    });
 }
 
 // ==================== Speech Recognition ====================
@@ -157,15 +527,16 @@ function setupSpeechRecognition() {
     
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     state.recognition = new SpeechRecognition();
-    state.recognition.lang = state.currentLang;
+    state.recognition.lang = speechRecognitionLangCodes[state.currentLang];
     state.recognition.continuous = true;
     state.recognition.interimResults = true;
     
     state.recognition.onstart = () => {
         console.log('Speech recognition started');
-        elements.messageInput.placeholder = state.currentLang === 'zh-TW' ? '請說出您的問題...' : 'Please speak your question...';
+        setTemporaryPlaceholder('listening');
         elements.messageInput.value = '';
         state.finalTranscript = ''; // 重置已確定的文字
+        updateVoiceButtonAppearance();
     };
     
     state.recognition.onresult = (event) => {
@@ -186,24 +557,16 @@ function setupSpeechRecognition() {
         // 即時顯示：已確定的文字 + 臨時識別的文字
         const fullText = state.finalTranscript + interimTranscript;
         elements.messageInput.value = fullText;
-        
-        // 如果有辨識到文字，變成綠色發送按鈕
-        if (fullText.trim().length > 0) {
-            elements.voiceButton.classList.add('listening');
-            elements.voiceButton.querySelector('.material-symbols-outlined').textContent = 'send';
-        } else {
-            elements.voiceButton.classList.remove('listening');
-            elements.voiceButton.querySelector('.material-symbols-outlined').textContent = 'stop';
-        }
+        updateVoiceButtonAppearance();
     };
     
     state.recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
         if (event.error !== 'no-speech') {
             stopListening();
-            elements.messageInput.placeholder = state.currentLang === 'zh-TW' ? '請清楚說出您的問題' : 'Please speak clearly';
+            elements.messageInput.placeholder = uiText[state.currentLang].clarifyPrompt;
             setTimeout(() => {
-                elements.messageInput.placeholder = state.currentLang === 'zh-TW' ? '語音辨識內容將顯示於此' : 'Voice recognition will be displayed here';
+                applyMessagePlaceholder();
             }, 3000);
         }
     };
@@ -230,17 +593,85 @@ function toggleListening() {
     }
 }
 
+function handleVoiceButtonClick() {
+    if (state.isTypingEnabled) {
+        sendTypedMessage();
+    } else {
+        toggleListening();
+    }
+}
+
+function toggleTypingMode() {
+    state.isTypingEnabled = !state.isTypingEnabled;
+
+    if (state.isTypingEnabled && state.isListening) {
+        stopListening();
+    }
+
+    applyTypingModeState({
+        focusInput: state.isTypingEnabled
+    });
+
+    savePreferences();
+}
+
+function applyTypingModeState({ focusInput = false, preserveValue = false } = {}) {
+    elements.messageInput.readOnly = !state.isTypingEnabled;
+
+    if (!state.isTypingEnabled && !preserveValue) {
+        elements.messageInput.value = '';
+        elements.messageInput.blur();
+    } else if (state.isTypingEnabled && focusInput) {
+        elements.messageInput.focus();
+    }
+
+    updateTypingToggleUI();
+    applyMessagePlaceholder();
+    updateVoiceButtonAppearance();
+}
+
+function updateTypingToggleUI() {
+    if (!elements.typingToggle) {
+        return;
+    }
+
+    const icon = elements.typingToggle.querySelector('.material-symbols-outlined');
+    const langText = uiText[state.currentLang].typingToggle;
+
+    elements.typingToggle.title = state.isTypingEnabled ? langText.disable : langText.enable;
+
+    if (icon) {
+        icon.textContent = state.isTypingEnabled ? 'mic' : 'keyboard';
+    }
+}
+
+function sendTypedMessage() {
+    if (!state.isTypingEnabled) {
+        return;
+    }
+
+    const text = elements.messageInput.value.trim();
+    if (!text) {
+        updateVoiceButtonAppearance();
+        return;
+    }
+
+    handleSpeechResult(text);
+    elements.messageInput.value = '';
+    updateVoiceButtonAppearance();
+    applyMessagePlaceholder();
+}
+
 function startListening() {
     if (!state.recognition) {
-        alert(state.currentLang === 'zh-TW' ? '您的瀏覽器不支援語音辨識功能' : 'Your browser does not support speech recognition');
+        alert(uiText[state.currentLang].speechUnsupported);
         return;
     }
     
     state.isListening = true;
-    // 改變圖標為停止（不變綠色）
-    elements.voiceButton.querySelector('.material-symbols-outlined').textContent = 'stop';
     elements.messageInput.value = '';
-    elements.messageInput.placeholder = state.currentLang === 'zh-TW' ? '請說出您的問題...' : 'Please speak your question...';
+    setTemporaryPlaceholder('listening');
+    updateVoiceButtonAppearance();
     
     try {
         state.recognition.start();
@@ -252,10 +683,7 @@ function startListening() {
 
 function stopListening() {
     state.isListening = false;
-    elements.voiceButton.classList.remove('listening');
-    // 改回麥克風圖標
-    elements.voiceButton.querySelector('.material-symbols-outlined').textContent = 'mic';
-    elements.messageInput.placeholder = state.currentLang === 'zh-TW' ? '語音辨識內容將顯示於此' : 'Voice recognition will be displayed here';
+    applyMessagePlaceholder();
     
     if (state.recognition) {
         try {
@@ -273,6 +701,7 @@ function stopListening() {
     
     // 清空保存的結果
     state.finalTranscript = '';
+    updateVoiceButtonAppearance();
 }
 
 // ==================== Speech Result Handler ====================
@@ -321,14 +750,58 @@ function handleSpeechResult(transcript) {
             'craftsman': 'craftsman',
             'craft': 'craftsman',
             'scholar': 'scholar'
+        },
+        'ja': {
+            'チケット': 'tickets',
+            '地図': 'tickets',
+            '料金': 'tickets',
+            '交通': 'traffic',
+            '施設': 'facilities',
+            '時間': 'facilities',
+            '斉天': 'performance1',
+            '大聖': 'performance1',
+            '龍宮': 'performance1',
+            '後継': 'performance2',
+            '舞台': 'performance2',
+            '太鼓': 'performance3',
+            '朝': 'performance3',
+            '建築': 'renovation',
+            '修復': 'renovation',
+            '職人': 'craftsman',
+            '工芸': 'craftsman',
+            '挙人': 'scholar'
+        },
+        'ko': {
+            '티켓': 'tickets',
+            '지도': 'tickets',
+            '요금': 'tickets',
+            '교통': 'traffic',
+            '시설': 'facilities',
+            '시간': 'facilities',
+            '제천': 'performance1',
+            '대성': 'performance1',
+            '용궁': 'performance1',
+            '후계': 'performance2',
+            '무대': 'performance2',
+            '북': 'performance3',
+            '아침': 'performance3',
+            '건축': 'renovation',
+            '복원': 'renovation',
+            '장인': 'craftsman',
+            '공예': 'craftsman',
+            '거인': 'scholar'
         }
     };
     
     let matchedAction = null;
+    const normalizedTranscript = state.currentLang === 'en'
+        ? transcript.toLowerCase()
+        : transcript;
+
     const currentKeywords = keywords[state.currentLang];
     
     for (const [keyword, action] of Object.entries(currentKeywords)) {
-        if (transcript.includes(keyword)) {
+        if (normalizedTranscript.includes(keyword)) {
             matchedAction = action;
             break;
         }
@@ -343,9 +816,7 @@ function handleSpeechResult(transcript) {
     } else {
         // Show default response
         addUserMessage(transcript);
-        const defaultMsg = state.currentLang === 'zh-TW' 
-            ? '我可以協助您了解展覽資訊、交通方式、當期表演等內容，請選擇您想了解的項目。'
-            : 'I can help you with exhibitions, transportation, performances, and more. Please select what you\'d like to know.';
+        const defaultMsg = uiText[state.currentLang].defaultResponse;
         setTimeout(() => {
             addAssistantMessage(defaultMsg, false);
         }, 300);
@@ -354,6 +825,8 @@ function handleSpeechResult(transcript) {
     // Clear input after processing
     setTimeout(() => {
         elements.messageInput.value = '';
+        updateVoiceButtonAppearance();
+        applyMessagePlaceholder();
     }, 1000);
 }
 
@@ -483,67 +956,61 @@ function scrollToBottom() {
 
 // ==================== Add Suggestion Cards to Chat ====================
 function addSuggestionCardsToChat() {
-    const cardsHTML = `
-        <div class="category-cards-container" style="animation: fadeInUp 0.4s ease;">
-            <!-- 展覽資訊 -->
-            <div class="category-card">
-                <div class="card-image" style="background: #C94A47;">
-                    <img src="展覽.png" alt="展覽" class="card-image-icon">
-                </div>
-                <h3 class="card-category-title">展覽訊息</h3>
-                <div class="card-options">
-                    <button class="option-btn" data-action="renovation">全聯善美的建築整修計畫</button>
-                    <button class="option-btn" data-action="craftsman">小小職人展-工藝上菜</button>
-                    <button class="option-btn" data-action="scholar">舉人之力</button>
-                </div>
-            </div>
+    const cardsContainer = document.createElement('div');
+    cardsContainer.className = 'category-cards-container';
+    cardsContainer.style.animation = 'fadeInUp 0.4s ease';
+    populateCategoryCards(cardsContainer, state.currentLang);
+    elements.chatContainer.appendChild(cardsContainer);
+    
+    scrollToBottom();
+}
 
-            <!-- 參觀資訊 -->
-            <div class="category-card">
-                <div class="card-image" style="background: #C94A47;">
-                    <img src="參觀資訊.png" alt="參觀資訊" class="card-image-icon">
-                </div>
-                <h3 class="card-category-title">參觀資訊</h3>
-                <div class="card-options">
-                    <button class="option-btn" data-action="tickets">票價與地圖</button>
-                    <button class="option-btn" data-action="traffic">交通資訊</button>
-                    <button class="option-btn" data-action="facilities">設施時間</button>
-                </div>
-            </div>
-
-            <!-- 當期演出 -->
-            <div class="category-card">
-                <div class="card-image" style="background: #C94A47;">
-                    <img src="表演.png" alt="表演" class="card-image-icon">
-                </div>
-                <h3 class="card-category-title">當期演出</h3>
-                <div class="card-options">
-                    <button class="option-btn" data-action="performance1">齊天大聖鬧龍宮</button>
-                    <button class="option-btn" data-action="performance2">接班人好戲台</button>
-                    <button class="option-btn" data-action="performance3">臺鼓晨鐘</button>
-                </div>
+// ==================== Clear Chat ====================
+function clearChat() {
+    // 停止語音識別
+    if (state.isListening) {
+        stopListening();
+    }
+    
+    // 清空輸入框
+    elements.messageInput.value = '';
+    state.finalTranscript = '';
+    updateVoiceButtonAppearance();
+    
+    // 清空聊天容器並重新建立初始內容
+    elements.chatContainer.innerHTML = '';
+    
+    // 重新添加歡迎消息
+    const welcomeGroup = document.createElement('div');
+    welcomeGroup.className = 'message-group assistant-group';
+    welcomeGroup.innerHTML = `
+        <div class="message-avatar">
+            <img src="3c25cb87ae.png" alt="AI助理" class="avatar-img">
+        </div>
+        <div class="message-content">
+            <div class="message-bubble assistant-bubble">
+                <span id="welcomeMessage">${uiText[state.currentLang].welcome}</span>
             </div>
         </div>
     `;
+    elements.chatContainer.appendChild(welcomeGroup);
     
-    // 將卡片插入到聊天容器中
+    // 重新添加建議卡片
     const cardsContainer = document.createElement('div');
-    cardsContainer.innerHTML = cardsHTML;
-    elements.chatContainer.appendChild(cardsContainer.firstElementChild);
+    cardsContainer.className = 'category-cards-container';
+    cardsContainer.id = 'suggestionCards';
+    populateCategoryCards(cardsContainer, state.currentLang);
+    elements.chatContainer.appendChild(cardsContainer);
     
-    // 重新綁定按鈕事件
-    const newButtons = elements.chatContainer.querySelectorAll('.option-btn');
-    newButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const action = btn.dataset.action;
-            const content = contentData[state.currentLang][action];
-            if (content) {
-                handleCardClick(content.title, content.response);
-            }
-        });
+    // 更新 elements 引用
+    elements.suggestionCards = document.getElementById('suggestionCards');
+    elements.welcomeMessage = document.getElementById('welcomeMessage');
+    
+    // 滾動到頂部
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
     });
-    
-    scrollToBottom();
 }
 
 // ==================== Handle Scroll ====================
@@ -592,25 +1059,79 @@ function toggleVoiceEnabled() {
 }
 
 // ==================== Language Toggle ====================
-function toggleLanguage() {
-    state.currentLang = state.currentLang === 'zh-TW' ? 'en' : 'zh-TW';
+function openLanguageModal() {
+    elements.languageModal.classList.remove('hidden');
+    updateLanguageModalSelection();
+}
+
+function closeLanguageModal() {
+    elements.languageModal.classList.add('hidden');
+}
+
+function selectLanguage(lang) {
+    state.currentLang = lang;
     
     // Update speech recognition language
     if (state.recognition) {
-        state.recognition.lang = state.currentLang;
+        state.recognition.lang = speechRecognitionLangCodes[lang];
     }
+    
+    // Update body class for font switching
+    document.body.className = document.body.className.replace(/lang-\S+/g, '').trim();
+    document.body.classList.add(`lang-${lang}`);
     
     // Update UI text
     updateUILanguage();
+    updateLanguageButton();
     savePreferences();
 }
 
-function updateUILanguage() {
-    if (state.currentLang === 'zh-TW') {
-        elements.messageInput.placeholder = '語音辨識內容將顯示於此';
-    } else {
-        elements.messageInput.placeholder = 'Voice recognition will be displayed here';
+function updateLanguageButton() {
+    const langText = elements.langToggle.querySelector('.lang-text');
+    if (langText) {
+        langText.textContent = languageIcons[state.currentLang];
     }
+}
+
+function updateLanguageModalSelection() {
+    const options = document.querySelectorAll('.language-option');
+    options.forEach(option => {
+        if (option.dataset.lang === state.currentLang) {
+            option.classList.add('active');
+        } else {
+            option.classList.remove('active');
+        }
+    });
+}
+
+function updateUILanguage() {
+    const langText = uiText[state.currentLang];
+    
+    if (elements.welcomeMessage) {
+        elements.welcomeMessage.textContent = langText.welcome;
+    }
+    
+    if (elements.infoButtonText) {
+        elements.infoButtonText.textContent = langText.infoButton;
+    }
+    
+    if (elements.infoButton) {
+        elements.infoButton.title = langText.infoButtonTitle;
+    }
+    
+    elements.voiceToggle.title = langText.header.voiceToggle;
+    elements.textSizeToggle.title = langText.header.textSizeToggle;
+    elements.langToggle.title = langText.header.langToggle;
+    elements.clearChatBtn.title = langText.header.clearChat;
+    updateTypingToggleUI();
+    updateLanguageButton();
+    
+    applyMessagePlaceholder();
+    
+    const cardContainers = elements.chatContainer.querySelectorAll('.category-cards-container');
+    cardContainers.forEach(container => {
+        populateCategoryCards(container, state.currentLang);
+    });
 }
 
 // ==================== Text-to-Speech ====================
@@ -622,9 +1143,96 @@ function speakText(text) {
     speechSynthesis.cancel();
     
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = state.currentLang;
-    utterance.rate = 0.9;
-    utterance.pitch = 1;
+    utterance.lang = speechRecognitionLangCodes[state.currentLang] || state.currentLang;
+    utterance.rate = 0.95;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+    
+    // 獲取可用語音
+    const voices = speechSynthesis.getVoices();
+    const targetLang = speechRecognitionLangCodes[state.currentLang];
+    
+    // 多平台高品質語音優先名單
+    const preferredVoiceNames = {
+        'zh-TW': [
+            'Mei-Jia', 'Sin-Ji', 'Ting-Ting', 'Yu-shu',              // Apple
+            'Google 國語（臺灣）', 'Chinese (Taiwan)',                // Google
+            'Hanhan', 'Zhiwei', 'Microsoft Hanhan', 'Microsoft Zhiwei' // Microsoft
+        ],
+        'en-US': [
+            'Samantha', 'Alex', 'Ava', 'Zoe',                        // Apple
+            'Google US English', 'Google English',                    // Google
+            'David', 'Zira', 'Mark', 'Microsoft David', 'Microsoft Zira' // Microsoft
+        ],
+        'ja-JP': [
+            'Kyoko', 'Otoya', 'Hattori',                             // Apple
+            'Google 日本語', 'Japanese (Japan)',                      // Google
+            'Haruka', 'Ichiro', 'Microsoft Haruka', 'Microsoft Ichiro' // Microsoft
+        ],
+        'ko-KR': [
+            'Yuna', 'Sora',                                          // Apple
+            'Google 한국의', 'Korean (South Korea)',                  // Google
+            'Heami', 'Microsoft Heami'                               // Microsoft
+        ]
+    };
+    
+    let selectedVoice = null;
+    
+    // 1. 優先選擇各平台的高品質語音
+    const preferredNames = preferredVoiceNames[targetLang] || [];
+    for (const name of preferredNames) {
+        selectedVoice = voices.find(voice => 
+            (voice.name.includes(name) || voice.name === name) && 
+            (voice.lang === targetLang || voice.lang.startsWith(targetLang.split('-')[0]))
+        );
+        if (selectedVoice) {
+            console.log('✓ 使用高品質語音:', selectedVoice.name, '(', selectedVoice.lang, ')');
+            break;
+        }
+    }
+    
+    // 2. 選擇本地高品質語音
+    if (!selectedVoice) {
+        selectedVoice = voices.find(voice => 
+            voice.lang === targetLang && 
+            voice.localService &&
+            (voice.name.includes('Premium') || voice.name.includes('Enhanced') || voice.name.includes('Natural'))
+        );
+        if (selectedVoice) {
+            console.log('✓ 使用本地高品質語音:', selectedVoice.name);
+        }
+    }
+    
+    // 3. 選擇任何本地語音
+    if (!selectedVoice) {
+        selectedVoice = voices.find(voice => voice.lang === targetLang && voice.localService);
+        if (selectedVoice) {
+            console.log('使用本地語音:', selectedVoice.name);
+        }
+    }
+    
+    // 4. 選擇任何匹配的語音
+    if (!selectedVoice) {
+        selectedVoice = voices.find(voice => voice.lang === targetLang);
+        if (selectedVoice) {
+            console.log('使用語音:', selectedVoice.name);
+        }
+    }
+    
+    // 5. 選擇語言前綴匹配的語音
+    if (!selectedVoice) {
+        const langPrefix = targetLang.split('-')[0];
+        selectedVoice = voices.find(voice => voice.lang.startsWith(langPrefix));
+        if (selectedVoice) {
+            console.log('使用相近語音:', selectedVoice.name);
+        }
+    }
+    
+    if (selectedVoice) {
+        utterance.voice = selectedVoice;
+    } else {
+        console.warn('⚠ 未找到合適語音，使用系統預設');
+    }
     
     speechSynthesis.speak(utterance);
 }
@@ -634,34 +1242,45 @@ function savePreferences() {
     localStorage.setItem('aiAssistantPrefs', JSON.stringify({
         textSize: state.textSize,
         isVoiceEnabled: state.isVoiceEnabled,
-        currentLang: state.currentLang
+        currentLang: state.currentLang,
+        isTypingEnabled: state.isTypingEnabled
     }));
 }
 
 function loadPreferences() {
     const saved = localStorage.getItem('aiAssistantPrefs');
-    if (saved) {
-        const prefs = JSON.parse(saved);
-        
-        if (prefs.textSize) {
-            state.textSize = prefs.textSize;
-            elements.chatContainer.classList.add(`text-${state.textSize}`);
-        }
-        
-        if (prefs.isVoiceEnabled !== undefined) {
-            state.isVoiceEnabled = prefs.isVoiceEnabled;
-            elements.voiceToggle.querySelector('.material-symbols-outlined').textContent = 
-                prefs.isVoiceEnabled ? 'volume_up' : 'volume_off';
-        }
-        
-        if (prefs.currentLang) {
-            state.currentLang = prefs.currentLang;
-            updateUILanguage();
-            if (state.recognition) {
-                state.recognition.lang = state.currentLang;
-            }
-        }
+    if (!saved) {
+        document.body.classList.add(`lang-${state.currentLang}`);
+        applyTypingModeState({ preserveValue: true });
+        return;
     }
+
+    const prefs = JSON.parse(saved);
+
+    if (prefs.currentLang) {
+        state.currentLang = prefs.currentLang;
+        if (state.recognition) {
+            state.recognition.lang = speechRecognitionLangCodes[state.currentLang];
+        }
+        document.body.classList.add(`lang-${state.currentLang}`);
+    }
+
+    if (prefs.textSize) {
+        state.textSize = prefs.textSize;
+        elements.chatContainer.classList.remove('text-small', 'text-medium', 'text-large');
+        elements.chatContainer.classList.add(`text-${state.textSize}`);
+    }
+
+    if (prefs.isVoiceEnabled !== undefined) {
+        state.isVoiceEnabled = prefs.isVoiceEnabled;
+        elements.voiceToggle.querySelector('.material-symbols-outlined').textContent = 
+            prefs.isVoiceEnabled ? 'volume_up' : 'volume_off';
+    }
+
+    // Always start in voice mode (isTypingEnabled = false)
+    state.isTypingEnabled = false;
+
+    applyTypingModeState({ preserveValue: true });
 }
 
 // ==================== Initialize App ====================

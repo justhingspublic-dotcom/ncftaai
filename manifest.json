@@ -2,7 +2,7 @@
   "name": "傳藝園區AI小幫手",
   "short_name": "傳藝AI",
   "description": "宜蘭傳藝園區智能導覽助理",
-  "start_url": "/ncftaai/",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#C94A47",

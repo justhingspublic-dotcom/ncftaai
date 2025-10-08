@@ -59,6 +59,35 @@ body {
     transition: background 0.3s ease, color 0.3s ease;
 }
 
+body.lang-en,
+body.lang-ja,
+body.lang-ko {
+    font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body.lang-zh-TW {
+    font-family: 'Noto Serif HK', 'Noto Sans TC', 'Inter', serif;
+}
+
+/* Language-specific font overrides for specific elements */
+body.lang-en .option-btn,
+body.lang-ja .option-btn,
+body.lang-ko .option-btn,
+body.lang-en .message-input,
+body.lang-ja .message-input,
+body.lang-ko .message-input,
+body.lang-en .info-button,
+body.lang-ja .info-button,
+body.lang-ko .info-button,
+body.lang-en .card-category-title,
+body.lang-ja .card-category-title,
+body.lang-ko .card-category-title,
+body.lang-en .message-bubble,
+body.lang-ja .message-bubble,
+body.lang-ko .message-bubble {
+    font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
 /* ==================== Header ==================== */
 .header {
     position: fixed;
@@ -93,6 +122,7 @@ body {
 
 .header-right {
     display: flex;
+    align-items: center;
     gap: var(--spacing-sm);
 }
 
@@ -107,7 +137,7 @@ body {
     align-items: center;
     justify-content: center;
     transition: all var(--transition-fast);
-    color: #FFFFFF;
+    color: #F0ECDF;
 }
 
 .header-btn:hover {
@@ -285,13 +315,19 @@ body {
     gap: var(--spacing-lg);
     overflow-x: auto;
     overflow-y: visible;
-    padding: var(--spacing-md) var(--spacing-lg);
-    margin: var(--spacing-sm) 0 0;
+    padding: var(--spacing-md) 0;
+    margin: 0 calc(-1 * var(--spacing-lg));
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
     animation: fadeInUp 0.5s ease 0.2s both;
 }
 
+.category-cards-container::before,
+.category-cards-container::after {
+    content: '';
+    flex-shrink: 0;
+    width: var(--spacing-lg);
+}
 
 .category-cards-container::-webkit-scrollbar {
     display: none;
@@ -369,6 +405,98 @@ body {
 
 .category-cards-container.hidden {
     display: none;
+}
+
+/* ==================== Language Modal ==================== */
+.language-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.language-modal.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.language-modal-content {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-sm);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    min-width: 200px;
+    animation: scaleIn 0.3s ease;
+}
+
+.language-option {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md) var(--spacing-lg);
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    font-family: 'Noto Serif HK', 'Noto Sans TC', 'Inter', serif;
+}
+
+.language-option:hover {
+    background: rgba(201, 74, 71, 0.1);
+}
+
+.language-option:active {
+    transform: scale(0.98);
+}
+
+.language-option.active {
+    background: rgba(201, 74, 71, 0.15);
+}
+
+.language-icon {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--primary-color);
+    min-width: 32px;
+    text-align: center;
+    font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.language-name {
+    font-size: 18px;
+    color: var(--text-color);
+    font-weight: 500;
+}
+
+.lang-text {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--primary-color);
+    font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #F0ECDF;
+    width: 32px;
+    height: 24px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
 }
 
 /* ==================== Scroll to Bottom Button ==================== */
@@ -683,15 +811,12 @@ html,
     }
     
     .input-container {
-        left: 0;
-        right: 0;
-        bottom: 0;
-        padding: var(--spacing-sm) var(--spacing-sm) var(--spacing-lg) var(--spacing-sm);
-        border-radius: 16px 16px 0 0;
-        box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
-        background: rgba(255, 255, 255, 0.7);
-        backdrop-filter: blur(30px);
-        -webkit-backdrop-filter: blur(30px);
+        left: var(--spacing-md);
+        right: var(--spacing-md);
+        bottom: var(--spacing-md);
+        padding: var(--spacing-md);
+        border-radius: 16px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
     }
     
     .voice-button {
@@ -723,7 +848,7 @@ html,
     }
     
     .scroll-to-bottom-btn {
-        bottom: 220px;
+        bottom: 200px;
         width: 44px;
         height: 44px;
     }
@@ -784,15 +909,12 @@ html,
     }
     
     .input-container {
-        left: 0;
-        right: 0;
-        bottom: 0;
-        padding: var(--spacing-xs) var(--spacing-xs) var(--spacing-md) var(--spacing-xs);
-        border-radius: 16px 16px 0 0;
-        box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
-        background: rgba(255, 255, 255, 0.7);
-        backdrop-filter: blur(30px);
-        -webkit-backdrop-filter: blur(30px);
+        left: var(--spacing-sm);
+        right: var(--spacing-sm);
+        bottom: var(--spacing-sm);
+        padding: var(--spacing-sm);
+        border-radius: 16px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
     }
     
     .input-wrapper {
@@ -811,7 +933,7 @@ html,
     }
     
     .scroll-to-bottom-btn {
-        bottom: 210px;
+        bottom: 190px;
         width: 40px;
         height: 40px;
     }
