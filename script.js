@@ -11,7 +11,8 @@ const state = {
     finalTranscript: '', // 保存已確定的語音識別結果
     overlayHideTimeout: null,
     overlayTranscript: '',
-    silenceTimeout: null // 無語音計時器
+    silenceTimeout: null, // 無語音計時器
+    hasRecognizedText: false // 是否已經辨識到文字
 };
 
 // ==================== DOM Elements ====================
@@ -32,7 +33,8 @@ const elements = {
     clearChatBtn: document.getElementById('clearChatBtn'),
     speechOverlay: document.getElementById('speechOverlay'),
     speechOverlayText: document.getElementById('speechOverlayText'),
-    speechOverlaySend: document.getElementById('speechOverlaySend')
+    speechOverlaySend: document.getElementById('speechOverlaySend'),
+    speechOverlayClose: document.getElementById('speechOverlayClose')
 };
 
 // ==================== Language Icons ====================
@@ -524,18 +526,23 @@ function clearOverlayHideTimeout() {
 
 function clearSilenceTimeout() {
     if (state.silenceTimeout) {
+        console.log('清除靜音計時器');
         clearTimeout(state.silenceTimeout);
         state.silenceTimeout = null;
     }
 }
 
-function resetSilenceTimeout() {
+function startSilenceTimeout() {
     clearSilenceTimeout();
-    if (state.isListening) {
+    // 只在還沒辨識到文字且正在聆聽時啟動計時器
+    if (state.isListening && !state.hasRecognizedText) {
+        console.log('啟動10秒無語音計時器');
         state.silenceTimeout = setTimeout(() => {
-            console.log('5秒無語音，自動停止聆聽');
+            console.log('10秒無語音，自動停止聆聽');
             stopListening();
-        }, 5000);
+        }, 10000);
+    } else {
+        console.log('不啟動計時器 - isListening:', state.isListening, 'hasRecognizedText:', state.hasRecognizedText);
     }
 }
 
@@ -712,6 +719,12 @@ function setupEventListeners() {
         elements.speechOverlaySend.addEventListener('click', submitOverlayTranscript);
     }
     
+    if (elements.speechOverlayClose) {
+        elements.speechOverlayClose.addEventListener('click', () => {
+            stopListening();
+        });
+    }
+    
     // Manual input events
     elements.messageInput.addEventListener('input', () => {
         if (state.isTypingEnabled) {
@@ -755,10 +768,12 @@ function setupSpeechRecognition() {
     state.recognition.onstart = () => {
         console.log('Speech recognition started');
         setTemporaryPlaceholder('listening');
-        elements.messageInput.value = '';
-        state.finalTranscript = ''; // 重置已確定的文字
+        // 不在這裡清空文字，因為這可能是自動重啟
         updateVoiceButtonAppearance();
-        updateSpeechOverlay(getListeningPromptText());
+        // 只在沒有文字時更新 overlay
+        if (!state.hasRecognizedText) {
+            updateSpeechOverlay(getListeningPromptText());
+        }
     };
     
     state.recognition.onresult = (event) => {
@@ -782,8 +797,14 @@ function setupSpeechRecognition() {
         updateVoiceButtonAppearance();
         updateSpeechOverlay(fullText);
         
-        // 重置靜音計時器（有語音輸入）
-        resetSilenceTimeout();
+        // 一旦有辨識到文字，標記為已辨識並清除靜音計時器（不再自動停止）
+        if (fullText.trim().length > 0) {
+            if (!state.hasRecognizedText) {
+                console.log('辨識到文字，設置 hasRecognizedText = true，清除計時器');
+                state.hasRecognizedText = true;
+            }
+            clearSilenceTimeout();
+        }
     };
     
     state.recognition.onerror = (event) => {
@@ -950,14 +971,17 @@ function startListening() {
         return;
     }
     
+    console.log('開始聆聽');
     state.isListening = true;
+    state.hasRecognizedText = false; // 重置辨識狀態
+    state.finalTranscript = ''; // 清空之前的文字
     elements.messageInput.value = '';
     setTemporaryPlaceholder('listening');
     updateVoiceButtonAppearance();
     updateSpeechOverlay(getListeningPromptText());
     
-    // 啟動5秒無語音計時器
-    resetSilenceTimeout();
+    // 啟動10秒無語音計時器（只在開始時啟動一次）
+    startSilenceTimeout();
     
     try {
         state.recognition.start();
@@ -968,7 +992,9 @@ function startListening() {
 }
 
 function stopListening() {
+    console.log('停止聆聽');
     state.isListening = false;
+    state.hasRecognizedText = false; // 重置辨識狀態
     applyMessagePlaceholder();
     
     // 清除靜音計時器
