@@ -610,7 +610,7 @@ html,
 }
 
 /* ==================== Responsive Design ==================== */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
     .header {
         height: 56px;
         padding: 0 var(--spacing-md);
