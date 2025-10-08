@@ -1,7 +1,7 @@
 // ==================== State Management ====================
 const state = {
     isListening: false,
-    textSize: 'medium', // 'small', 'medium', 'large'
+    textSize: 'small', // 'small', 'medium', 'large'
     isVoiceEnabled: true,
     currentLang: 'zh-TW',
     recognition: null,
