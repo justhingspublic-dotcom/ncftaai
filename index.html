@@ -8,8 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=1.0.1">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=1.1.1">
     
     <!-- Cache Control -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -143,6 +143,17 @@
         <span class="material-symbols-outlined">arrow_downward</span>
     </button>
 
+    <!-- Floating Speech Overlay -->
+    <div class="speech-overlay hidden" id="speechOverlay">
+        <div class="speech-overlay-content">
+            <span class="material-symbols-outlined speech-overlay-icon">graphic_eq</span>
+            <span class="speech-overlay-text" id="speechOverlayText"></span>
+            <button class="speech-overlay-send" id="speechOverlaySend" type="button">
+                <span class="material-symbols-outlined">arrow_upward</span>
+            </button>
+        </div>
+    </div>
+
     <!-- Input Area -->
     <div class="input-container">
         <button class="voice-button" id="voiceButton" title="語音輸入">
@@ -163,7 +174,21 @@
         </div>
     </div>
 
-    <script src="script.js?v=1.0.1"></script>
+    <script src="script.js?v=1.0.6"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then((registration) => {
+                        console.log('✓ Service Worker 註冊成功:', registration.scope);
+                    })
+                    .catch((error) => {
+                        console.log('Service Worker 註冊失敗:', error);
+                    });
+            });
+        }
+    </script>
 </body>
 </html>
-

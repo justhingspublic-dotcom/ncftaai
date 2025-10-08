@@ -1,6 +1,7 @@
 {
   "name": "傳藝園區AI小幫手",
   "short_name": "傳藝AI",
+  "version": "1.0.0",
   "description": "宜蘭傳藝園區智能導覽助理",
   "start_url": ".",
   "display": "standalone",

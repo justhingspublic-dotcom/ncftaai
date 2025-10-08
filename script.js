@@ -4,9 +4,14 @@ const state = {
     textSize: 'small', // 'small', 'medium', 'large'
     isVoiceEnabled: true,
     currentLang: 'zh-TW',
+    isSpeechSupported: true,
+    hasShownSpeechFallback: false,
     isTypingEnabled: false,
     recognition: null,
-    finalTranscript: '' // 保存已確定的語音識別結果
+    finalTranscript: '', // 保存已確定的語音識別結果
+    overlayHideTimeout: null,
+    overlayTranscript: '',
+    silenceTimeout: null // 無語音計時器
 };
 
 // ==================== DOM Elements ====================
@@ -24,7 +29,10 @@ const elements = {
     infoButtonText: document.getElementById('infoButtonText'),
     welcomeMessage: document.getElementById('welcomeMessage'),
     languageModal: document.getElementById('languageModal'),
-    clearChatBtn: document.getElementById('clearChatBtn')
+    clearChatBtn: document.getElementById('clearChatBtn'),
+    speechOverlay: document.getElementById('speechOverlay'),
+    speechOverlayText: document.getElementById('speechOverlayText'),
+    speechOverlaySend: document.getElementById('speechOverlaySend')
 };
 
 // ==================== Language Icons ====================
@@ -70,11 +78,13 @@ const uiText = {
         infoButtonTitle: '顯示建議',
         inputPlaceholder: {
             idle: '語音辨識內容將顯示於此',
-            listening: '請說出您的問題...',
+            listening: '說出您的問題',
             typing: '請輸入您的問題'
         },
         clarifyPrompt: '請清楚說出您的問題',
         speechUnsupported: '您的瀏覽器不支援語音辨識功能',
+        speechFallbackNotice: '偵測不到語音辨識功能，已自動切換為打字模式。',
+        overlaySendTitle: '送出語音內容',
         typingToggle: {
             enable: '開啟打字',
             disable: '關閉打字'
@@ -98,11 +108,13 @@ const uiText = {
         infoButtonTitle: 'Show suggestions',
         inputPlaceholder: {
             idle: 'Voice recognition will be displayed here',
-            listening: 'Please speak your question...',
+            listening: 'Speak your question',
             typing: 'Type your question here'
         },
         clarifyPrompt: 'Please speak clearly',
         speechUnsupported: 'Your browser does not support speech recognition',
+        speechFallbackNotice: 'Speech recognition is unavailable. Switched to typing mode automatically.',
+        overlaySendTitle: 'Send recognized text',
         typingToggle: {
             enable: 'Enable typing',
             disable: 'Disable typing'
@@ -126,11 +138,13 @@ const uiText = {
         infoButtonTitle: '提案を表示',
         inputPlaceholder: {
             idle: '音声認識の内容がここに表示されます',
-            listening: 'ご質問をお話しください...',
+            listening: 'ご質問をお話しください',
             typing: 'ご質問を入力してください'
         },
         clarifyPrompt: 'はっきりとお話しください',
         speechUnsupported: 'お使いのブラウザは音声認識に対応していません',
+        speechFallbackNotice: '音声認識が利用できません。入力モードに切り替えました。',
+        overlaySendTitle: '認識したテキストを送信',
         typingToggle: {
             enable: '入力を有効',
             disable: '入力を無効'
@@ -154,11 +168,13 @@ const uiText = {
         infoButtonTitle: '제안 표시',
         inputPlaceholder: {
             idle: '음성 인식 내용이 여기에 표시됩니다',
-            listening: '질문을 말씀해 주세요...',
+            listening: '질문을 말씀해 주세요',
             typing: '질문을 입력해 주세요'
         },
         clarifyPrompt: '명확하게 말씀해 주세요',
         speechUnsupported: '브라우저가 음성 인식을 지원하지 않습니다',
+        speechFallbackNotice: '음성 인식을 사용할 수 없어 입력 모드로 전환했습니다.',
+        overlaySendTitle: '인식된 문장 보내기',
         typingToggle: {
             enable: '입력 활성화',
             disable: '입력 비활성화'
@@ -335,6 +351,16 @@ const contentData = {
 };
 
 // ==================== Category Rendering ====================
+function attachOptionButtonListener(button) {
+    button.onclick = () => {
+        const action = button.dataset.action;
+        const content = contentData[state.currentLang][action];
+        if (content) {
+            handleCardClick(content.title, content.response);
+        }
+    };
+}
+
 function createCategoryCard(category, lang) {
     const categoryText = uiText[lang].categories[category.id];
     const card = document.createElement('div');
@@ -363,12 +389,7 @@ function createCategoryCard(category, lang) {
         button.className = 'option-btn';
         button.dataset.action = action;
         button.textContent = contentData[lang][action].title;
-        button.addEventListener('click', () => {
-            const content = contentData[state.currentLang][action];
-            if (content) {
-                handleCardClick(content.title, content.response);
-            }
-        });
+        attachOptionButtonListener(button);
         optionsContainer.appendChild(button);
     });
 
@@ -380,10 +401,72 @@ function createCategoryCard(category, lang) {
 }
 
 function populateCategoryCards(container, lang = state.currentLang) {
-    container.innerHTML = '';
+    if (!container) {
+        return;
+    }
+
+    const existingCards = new Map();
+    container.querySelectorAll('.category-card').forEach(card => {
+        if (card.dataset.category) {
+            existingCards.set(card.dataset.category, card);
+        }
+    });
+
+    const configIds = new Set();
+
     categoryConfig.forEach(category => {
-        const cardElement = createCategoryCard(category, lang);
-        container.appendChild(cardElement);
+        configIds.add(category.id);
+        let card = existingCards.get(category.id);
+
+        if (!card) {
+            card = createCategoryCard(category, lang);
+            container.appendChild(card);
+            return;
+        }
+
+        const categoryText = uiText[lang].categories[category.id];
+
+        const title = card.querySelector('.card-category-title');
+        if (title) {
+            title.textContent = categoryText.title;
+        }
+
+        const image = card.querySelector('.card-image img');
+        if (image) {
+            image.alt = categoryText.imageAlt;
+            image.src = category.image;
+        }
+
+        let optionsContainer = card.querySelector('.card-options');
+        if (!optionsContainer) {
+            optionsContainer = document.createElement('div');
+            optionsContainer.className = 'card-options';
+            card.appendChild(optionsContainer);
+        }
+
+        category.options.forEach((action, index) => {
+            let button = optionsContainer.children[index];
+            if (!button) {
+                button = document.createElement('button');
+                button.className = 'option-btn';
+                optionsContainer.appendChild(button);
+            }
+            button.dataset.action = action;
+            button.textContent = contentData[lang][action].title;
+            attachOptionButtonListener(button);
+        });
+
+        while (optionsContainer.children.length > category.options.length) {
+            optionsContainer.lastElementChild.remove();
+        }
+
+        container.appendChild(card);
+    });
+
+    existingCards.forEach((card, id) => {
+        if (!configIds.has(id)) {
+            card.remove();
+        }
     });
 }
 
@@ -413,26 +496,147 @@ function updateVoiceButtonAppearance() {
         return;
     }
 
-    if (state.isTypingEnabled) {
+    if (!state.isSpeechSupported || state.isTypingEnabled) {
         const hasText = elements.messageInput.value.trim().length > 0;
+        elements.voiceButton.classList.add('typing-mode');
         elements.voiceButton.classList.toggle('listening', hasText);
-        icon.textContent = hasText ? 'send' : 'keyboard';
+        icon.textContent = hasText ? 'arrow_upward' : 'keyboard';
         return;
     }
 
+    // 麥克風模式：只有「麥克風」和「停止」兩種狀態
+    elements.voiceButton.classList.remove('typing-mode');
     if (state.isListening) {
-        const hasText = elements.messageInput.value.trim().length > 0;
-        if (hasText) {
-            elements.voiceButton.classList.add('listening');
-            icon.textContent = 'send';
-        } else {
-            elements.voiceButton.classList.remove('listening');
-            icon.textContent = 'stop';
-        }
+        elements.voiceButton.classList.add('listening');
+        icon.textContent = 'stop';
     } else {
         elements.voiceButton.classList.remove('listening');
         icon.textContent = 'mic';
     }
+}
+
+function clearOverlayHideTimeout() {
+    if (state.overlayHideTimeout) {
+        clearTimeout(state.overlayHideTimeout);
+        state.overlayHideTimeout = null;
+    }
+}
+
+function clearSilenceTimeout() {
+    if (state.silenceTimeout) {
+        clearTimeout(state.silenceTimeout);
+        state.silenceTimeout = null;
+    }
+}
+
+function resetSilenceTimeout() {
+    clearSilenceTimeout();
+    if (state.isListening) {
+        state.silenceTimeout = setTimeout(() => {
+            console.log('5秒無語音，自動停止聆聽');
+            stopListening();
+        }, 5000);
+    }
+}
+
+function getListeningPromptText() {
+    return uiText[state.currentLang].inputPlaceholder.listening;
+}
+
+function updateSpeechOverlay(text) {
+    if (!elements.speechOverlay || !elements.speechOverlayText) {
+        return;
+    }
+    
+    const displayText = text && text.trim() ? text : getListeningPromptText();
+    const isPlaceholder = displayText === getListeningPromptText();
+    
+    clearOverlayHideTimeout();
+    elements.speechOverlayText.textContent = displayText;
+    state.overlayTranscript = displayText;
+    
+    // 添加或移除 placeholder class
+    elements.speechOverlayText.classList.toggle('speech-overlay-placeholder', isPlaceholder);
+    
+    if (elements.speechOverlaySend) {
+        const trimmed = displayText.trim();
+        const ready = trimmed.length > 0 && !isPlaceholder;
+        elements.speechOverlaySend.disabled = !ready;
+        elements.speechOverlaySend.classList.toggle('listening', ready);
+    }
+    
+    if (elements.speechOverlay.classList.contains('hidden')) {
+        elements.speechOverlay.classList.remove('hidden');
+        requestAnimationFrame(() => {
+            elements.speechOverlay.classList.add('speech-overlay-active');
+        });
+    } else {
+        elements.speechOverlay.classList.add('speech-overlay-active');
+    }
+}
+
+function hideSpeechOverlay({ immediate = false, delay = 600 } = {}) {
+    if (!elements.speechOverlay) {
+        return;
+    }
+    
+    if (elements.speechOverlay.classList.contains('hidden') && !elements.speechOverlay.classList.contains('speech-overlay-active')) {
+        return;
+    }
+    
+    const performHide = () => {
+        elements.speechOverlay.classList.remove('speech-overlay-active');
+        state.overlayHideTimeout = setTimeout(() => {
+            elements.speechOverlay.classList.add('hidden');
+            elements.speechOverlayText.textContent = '';
+            state.overlayTranscript = '';
+            if (elements.speechOverlaySend) {
+                elements.speechOverlaySend.disabled = true;
+                elements.speechOverlaySend.classList.remove('listening');
+            }
+            state.overlayHideTimeout = null;
+        }, 220);
+    };
+    
+    clearOverlayHideTimeout();
+    
+    if (immediate) {
+        elements.speechOverlay.classList.remove('speech-overlay-active');
+        elements.speechOverlay.classList.add('hidden');
+        elements.speechOverlayText.textContent = '';
+        state.overlayTranscript = '';
+        if (elements.speechOverlaySend) {
+            elements.speechOverlaySend.disabled = true;
+            elements.speechOverlaySend.classList.remove('listening');
+        }
+        return;
+    }
+    
+    state.overlayHideTimeout = setTimeout(performHide, Math.max(delay, 0));
+}
+
+function submitOverlayTranscript() {
+    const text = (state.overlayTranscript || '').trim();
+    if (!text) {
+        return;
+    }
+    
+    if (state.recognition) {
+        try {
+            state.recognition.stop();
+        } catch (error) {
+            console.error('Error stopping recognition:', error);
+        }
+    }
+    
+    state.isListening = false;
+    state.finalTranscript = '';
+    hideSpeechOverlay({ immediate: true });
+    applyMessagePlaceholder();
+    updateVoiceButtonAppearance();
+    
+    handleSpeechResult(text);
+    elements.messageInput.value = '';
 }
 
 // ==================== Initialization ====================
@@ -443,6 +647,10 @@ function init() {
     loadPreferences();
     updateUILanguage();
     updateVoiceButtonAppearance();
+    if (elements.speechOverlaySend) {
+        elements.speechOverlaySend.disabled = true;
+        elements.speechOverlaySend.classList.remove('listening');
+    }
     
     // 確保語音列表已載入（某些瀏覽器需要等待）
     if ('speechSynthesis' in window) {
@@ -500,6 +708,10 @@ function setupEventListeners() {
         addSuggestionCardsToChat();
     });
     
+    if (elements.speechOverlaySend) {
+        elements.speechOverlaySend.addEventListener('click', submitOverlayTranscript);
+    }
+    
     // Manual input events
     elements.messageInput.addEventListener('input', () => {
         if (state.isTypingEnabled) {
@@ -521,13 +733,22 @@ function setupEventListeners() {
 // ==================== Speech Recognition ====================
 function setupSpeechRecognition() {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-        console.log('Speech recognition not supported');
+        console.warn('Speech recognition not supported in this browser.');
+        handleSpeechRecognitionUnavailable(true);
         return;
     }
     
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     state.recognition = new SpeechRecognition();
-    state.recognition.lang = speechRecognitionLangCodes[state.currentLang];
+    state.isSpeechSupported = true;
+    state.hasShownSpeechFallback = false;
+    
+    if (elements.typingToggle) {
+        elements.typingToggle.disabled = false;
+        elements.typingToggle.classList.remove('header-btn-disabled');
+    }
+    
+    state.recognition.lang = speechRecognitionLangCodes[state.currentLang] || state.currentLang;
     state.recognition.continuous = true;
     state.recognition.interimResults = true;
     
@@ -537,6 +758,7 @@ function setupSpeechRecognition() {
         elements.messageInput.value = '';
         state.finalTranscript = ''; // 重置已確定的文字
         updateVoiceButtonAppearance();
+        updateSpeechOverlay(getListeningPromptText());
     };
     
     state.recognition.onresult = (event) => {
@@ -558,10 +780,19 @@ function setupSpeechRecognition() {
         const fullText = state.finalTranscript + interimTranscript;
         elements.messageInput.value = fullText;
         updateVoiceButtonAppearance();
+        updateSpeechOverlay(fullText);
+        
+        // 重置靜音計時器（有語音輸入）
+        resetSilenceTimeout();
     };
     
     state.recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            handleSpeechRecognitionUnavailable(true);
+            return;
+        }
+        
         if (event.error !== 'no-speech') {
             stopListening();
             elements.messageInput.placeholder = uiText[state.currentLang].clarifyPrompt;
@@ -584,6 +815,31 @@ function setupSpeechRecognition() {
     };
 }
 
+function handleSpeechRecognitionUnavailable(showNotice = false) {
+    hideSpeechOverlay({ immediate: true });
+    state.isSpeechSupported = false;
+    state.recognition = null;
+    
+    if (!state.isTypingEnabled) {
+        state.isTypingEnabled = true;
+    }
+    
+    if (elements.typingToggle) {
+        elements.typingToggle.disabled = true;
+        elements.typingToggle.classList.add('header-btn-disabled');
+    }
+    
+    applyTypingModeState({ preserveValue: true });
+    updateVoiceButtonAppearance();
+    
+    if (showNotice && !state.hasShownSpeechFallback && uiText[state.currentLang]) {
+        state.hasShownSpeechFallback = true;
+        addAssistantMessage(uiText[state.currentLang].speechFallbackNotice, false);
+    }
+    
+    savePreferences();
+}
+
 // ==================== Listening Control ====================
 function toggleListening() {
     if (state.isListening) {
@@ -594,14 +850,28 @@ function toggleListening() {
 }
 
 function handleVoiceButtonClick() {
+    if (!state.isSpeechSupported) {
+        if (!state.isTypingEnabled) {
+            state.isTypingEnabled = true;
+            applyTypingModeState({ preserveValue: true });
+        }
+        sendTypedMessage();
+        return;
+    }
+    
     if (state.isTypingEnabled) {
         sendTypedMessage();
     } else {
+        // 麥克風模式：只負責開始/停止錄音
         toggleListening();
     }
 }
 
 function toggleTypingMode() {
+    if (!state.isSpeechSupported && state.isTypingEnabled) {
+        return;
+    }
+    
     state.isTypingEnabled = !state.isTypingEnabled;
 
     if (state.isTypingEnabled && state.isListening) {
@@ -628,6 +898,10 @@ function applyTypingModeState({ focusInput = false, preserveValue = false } = {}
     updateTypingToggleUI();
     applyMessagePlaceholder();
     updateVoiceButtonAppearance();
+    
+    if (!state.isListening) {
+        hideSpeechOverlay({ immediate: true });
+    }
 }
 
 function updateTypingToggleUI() {
@@ -638,10 +912,18 @@ function updateTypingToggleUI() {
     const icon = elements.typingToggle.querySelector('.material-symbols-outlined');
     const langText = uiText[state.currentLang].typingToggle;
 
-    elements.typingToggle.title = state.isTypingEnabled ? langText.disable : langText.enable;
+    if (!state.isSpeechSupported) {
+        elements.typingToggle.title = uiText[state.currentLang].speechUnsupported;
+    } else {
+        elements.typingToggle.title = state.isTypingEnabled ? langText.disable : langText.enable;
+    }
 
     if (icon) {
-        icon.textContent = state.isTypingEnabled ? 'mic' : 'keyboard';
+        if (!state.isSpeechSupported) {
+            icon.textContent = 'keyboard';
+        } else {
+            icon.textContent = state.isTypingEnabled ? 'mic' : 'keyboard';
+        }
     }
 }
 
@@ -672,6 +954,10 @@ function startListening() {
     elements.messageInput.value = '';
     setTemporaryPlaceholder('listening');
     updateVoiceButtonAppearance();
+    updateSpeechOverlay(getListeningPromptText());
+    
+    // 啟動5秒無語音計時器
+    resetSilenceTimeout();
     
     try {
         state.recognition.start();
@@ -685,6 +971,9 @@ function stopListening() {
     state.isListening = false;
     applyMessagePlaceholder();
     
+    // 清除靜音計時器
+    clearSilenceTimeout();
+    
     if (state.recognition) {
         try {
             state.recognition.stop();
@@ -693,14 +982,13 @@ function stopListening() {
         }
     }
     
-    // 停止時處理輸入框內容
-    const transcript = elements.messageInput.value.trim();
-    if (transcript) {
-        handleSpeechResult(transcript);
-    }
+    // 使用淡出動畫隱藏對話框
+    hideSpeechOverlay({ delay: 0 });
     
+    // 不再自動送出，只是停止錄音
     // 清空保存的結果
     state.finalTranscript = '';
+    elements.messageInput.value = '';
     updateVoiceButtonAppearance();
 }
 
@@ -848,16 +1136,24 @@ function handleCardClick(title, response) {
 function addUserMessage(text) {
     const messageGroup = document.createElement('div');
     messageGroup.className = 'message-group user-group';
-    
-    messageGroup.innerHTML = `
-        <div class="message-avatar">
-            <span class="material-symbols-outlined">person</span>
-        </div>
-        <div class="message-content">
-            <div class="message-bubble user-bubble">${text}</div>
-        </div>
-    `;
-    
+
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    const avatarIcon = document.createElement('span');
+    avatarIcon.className = 'material-symbols-outlined';
+    avatarIcon.textContent = 'person';
+    avatar.appendChild(avatarIcon);
+
+    const content = document.createElement('div');
+    content.className = 'message-content';
+    const bubble = document.createElement('div');
+    bubble.className = 'message-bubble user-bubble';
+    bubble.textContent = text;
+    content.appendChild(bubble);
+
+    messageGroup.appendChild(avatar);
+    messageGroup.appendChild(content);
+
     elements.chatContainer.appendChild(messageGroup);
     scrollToBottom();
 }
@@ -1073,7 +1369,7 @@ function selectLanguage(lang) {
     
     // Update speech recognition language
     if (state.recognition) {
-        state.recognition.lang = speechRecognitionLangCodes[lang];
+        state.recognition.lang = speechRecognitionLangCodes[lang] || lang;
     }
     
     // Update body class for font switching
@@ -1123,10 +1419,17 @@ function updateUILanguage() {
     elements.textSizeToggle.title = langText.header.textSizeToggle;
     elements.langToggle.title = langText.header.langToggle;
     elements.clearChatBtn.title = langText.header.clearChat;
+    if (elements.speechOverlaySend) {
+        elements.speechOverlaySend.title = langText.overlaySendTitle;
+    }
     updateTypingToggleUI();
     updateLanguageButton();
     
     applyMessagePlaceholder();
+    
+    if (elements.speechOverlay && !elements.speechOverlay.classList.contains('hidden') && state.isListening) {
+        updateSpeechOverlay(getListeningPromptText());
+    }
     
     const cardContainers = elements.chatContainer.querySelectorAll('.category-cards-container');
     cardContainers.forEach(container => {
@@ -1150,7 +1453,7 @@ function speakText(text) {
     
     // 獲取可用語音
     const voices = speechSynthesis.getVoices();
-    const targetLang = speechRecognitionLangCodes[state.currentLang];
+    const targetLang = speechRecognitionLangCodes[state.currentLang] || utterance.lang;
     
     // 多平台高品質語音優先名單
     const preferredVoiceNames = {
