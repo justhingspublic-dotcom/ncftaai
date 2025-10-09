@@ -8,7 +8,8 @@ const state = {
     hasShownSpeechFallback: false,
     isTypingEnabled: false,
     recognition: null,
-    finalTranscript: '', // 保存已確定的語音識別結果
+    finalTranscript: '', // 保存已確定的語音識別結果（用於輸出）
+    finalSegments: [], // 追蹤已確定的語音片段以避免重複
     overlayHideTimeout: null,
     overlayTranscript: '',
     silenceTimeout: null, // 無語音計時器
@@ -55,6 +56,50 @@ const speechRecognitionLangCodes = {
     'ja': 'ja-JP',
     'ko': 'ko-KR'
 };
+
+function normalizeTranscriptForComparison(text) {
+    return (text || '')
+        .trim()
+        .replace(/\s+/g, '')
+        .toLowerCase();
+}
+
+function joinFinalSegments(interimText = '') {
+    const joiner = state.currentLang === 'en' ? ' ' : '';
+    const finalText = state.finalSegments.join(joiner).trim();
+    const interim = (interimText || '').trim();
+    if (finalText && interim) {
+        return `${finalText}${joiner}${interim}`.trim();
+    }
+    return finalText || interim;
+}
+
+function sanitizeTranscriptForChat(text, lang = state.currentLang) {
+    const value = (text || '').trim();
+    if (!value) {
+        return '';
+    }
+
+    if (lang === 'en') {
+        return value.replace(/\s+/g, ' ');
+    }
+
+    return value;
+}
+
+function detectPlatform() {
+    const ua = (navigator.userAgent || '').toLowerCase();
+    if (/iphone|ipad|ipod|mac os x/.test(ua)) {
+        return 'apple';
+    }
+    if (/android/.test(ua)) {
+        return 'android';
+    }
+    if (/windows/.test(ua)) {
+        return 'windows';
+    }
+    return 'unknown';
+}
 
 // ==================== Category Configuration ====================
 const categoryConfig = [
@@ -547,18 +592,27 @@ function clearSilenceTimeout() {
     }
 }
 
-function startSilenceTimeout() {
+function startSilenceTimeout({ force = false, duration } = {}) {
     clearSilenceTimeout();
-    // 只在還沒辨識到文字且正在聆聽時啟動計時器
-    if (state.isListening && !state.hasRecognizedText) {
-        console.log('啟動10秒無語音計時器');
-        state.silenceTimeout = setTimeout(() => {
-            console.log('10秒無語音，自動停止聆聽');
-            stopListening();
-        }, 10000);
-    } else {
-        console.log('不啟動計時器 - isListening:', state.isListening, 'hasRecognizedText:', state.hasRecognizedText);
+    if (!state.isListening) {
+        console.log('不啟動計時器 - 尚未進入聆聽狀態');
+        return;
     }
+
+    if (!force && state.hasRecognizedText) {
+        console.log('不啟動計時器 - 已辨識到文字且未強制啟動');
+        return;
+    }
+
+    const timeoutDuration = typeof duration === 'number'
+        ? duration
+        : (state.hasRecognizedText ? 3000 : 10000);
+
+    console.log(`啟動靜音計時器 (${timeoutDuration}ms)`);
+    state.silenceTimeout = setTimeout(() => {
+        console.log('靜音逾時，自動停止聆聽');
+        stopListening();
+    }, Math.max(timeoutDuration, 0));
 }
 
 function getListeningPromptText() {
@@ -575,7 +629,7 @@ function updateSpeechOverlay(text) {
     
     clearOverlayHideTimeout();
     elements.speechOverlayText.textContent = displayText;
-    state.overlayTranscript = displayText;
+    state.overlayTranscript = isPlaceholder ? '' : (text || '').trim();
     
     // 添加或移除 placeholder class
     elements.speechOverlayText.classList.toggle('speech-overlay-placeholder', isPlaceholder);
@@ -638,7 +692,7 @@ function hideSpeechOverlay({ immediate = false, delay = 600 } = {}) {
 }
 
 function submitOverlayTranscript() {
-    const text = (state.overlayTranscript || '').trim();
+    const text = sanitizeTranscriptForChat(state.overlayTranscript);
     if (!text) {
         return;
     }
@@ -652,7 +706,10 @@ function submitOverlayTranscript() {
     }
     
     state.isListening = false;
+    state.hasRecognizedText = false;
     state.finalTranscript = '';
+    state.finalSegments = [];
+    clearSilenceTimeout();
     hideSpeechOverlay({ immediate: true });
     applyMessagePlaceholder();
     updateVoiceButtonAppearance();
@@ -924,49 +981,62 @@ function setupSpeechRecognition() {
     
     state.recognition.onresult = (event) => {
         let interimTranscript = '';
-        
+
         // 只處理新的結果，從 resultIndex 開始
         for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript;
-            if (event.results[i].isFinal) {
-                // 已確定的結果累加到 state.finalTranscript
-                state.finalTranscript += transcript;
+            const result = event.results[i];
+            const transcript = result[0].transcript || '';
+
+            if (result.isFinal) {
+                const normalized = normalizeTranscriptForComparison(transcript);
+                if (!normalized) {
+                    continue;
+                }
+
+                const lastSegment = state.finalSegments[state.finalSegments.length - 1];
+                const lastNormalized = normalizeTranscriptForComparison(lastSegment);
+                if (normalized !== lastNormalized) {
+                    state.finalSegments.push(transcript.trim());
+                }
             } else {
-                // 臨時結果
                 interimTranscript += transcript;
             }
         }
-        
-        // 即時顯示：已確定的文字 + 臨時識別的文字
-        const fullText = state.finalTranscript + interimTranscript;
+
+        state.finalTranscript = state.finalSegments.join(state.currentLang === 'en' ? ' ' : '').trim();
+        const fullText = joinFinalSegments(interimTranscript);
+
         elements.messageInput.value = fullText;
         updateVoiceButtonAppearance();
         updateSpeechOverlay(fullText);
         
-        // 一旦有辨識到文字，標記為已辨識並清除靜音計時器（不再自動停止）
+        // 一旦有辨識到文字，標記為已辨識並重新啟動靜音計時器
         if (fullText.trim().length > 0) {
             if (!state.hasRecognizedText) {
-                console.log('辨識到文字，設置 hasRecognizedText = true，清除計時器');
+                console.log('辨識到文字，設置 hasRecognizedText = true');
                 state.hasRecognizedText = true;
             }
-            clearSilenceTimeout();
+            startSilenceTimeout({ force: true });
         }
     };
     
     state.recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
+        if (event.error === 'no-speech') {
+            stopListening();
+            return;
+        }
+
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
             handleSpeechRecognitionUnavailable(true);
             return;
         }
         
-        if (event.error !== 'no-speech') {
-            stopListening();
-            elements.messageInput.placeholder = uiText[state.currentLang].clarifyPrompt;
-            setTimeout(() => {
-                applyMessagePlaceholder();
-            }, 3000);
-        }
+        stopListening();
+        elements.messageInput.placeholder = uiText[state.currentLang].clarifyPrompt;
+        setTimeout(() => {
+            applyMessagePlaceholder();
+        }, 3000);
     };
     
     state.recognition.onend = () => {
@@ -986,6 +1056,12 @@ function handleSpeechRecognitionUnavailable(showNotice = false) {
     hideSpeechOverlay({ immediate: true });
     state.isSpeechSupported = false;
     state.recognition = null;
+    state.isListening = false;
+    state.hasRecognizedText = false;
+    state.finalTranscript = '';
+    state.finalSegments = [];
+    state.overlayTranscript = '';
+    clearSilenceTimeout();
     
     if (!state.isTypingEnabled) {
         state.isTypingEnabled = true;
@@ -1099,7 +1175,7 @@ function sendTypedMessage() {
         return;
     }
 
-    const text = elements.messageInput.value.trim();
+    const text = sanitizeTranscriptForChat(elements.messageInput.value);
     if (!text) {
         updateVoiceButtonAppearance();
         return;
@@ -1121,6 +1197,7 @@ function startListening() {
     state.isListening = true;
     state.hasRecognizedText = false; // 重置辨識狀態
     state.finalTranscript = ''; // 清空之前的文字
+    state.finalSegments = [];
     elements.messageInput.value = '';
     setTemporaryPlaceholder('listening');
     updateVoiceButtonAppearance();
@@ -1141,6 +1218,7 @@ function stopListening() {
     console.log('停止聆聽');
     state.isListening = false;
     state.hasRecognizedText = false; // 重置辨識狀態
+    state.finalSegments = [];
     applyMessagePlaceholder();
     
     // 清除靜音計時器
@@ -1160,13 +1238,19 @@ function stopListening() {
     // 不再自動送出，只是停止錄音
     // 清空保存的結果
     state.finalTranscript = '';
+    state.overlayTranscript = '';
     elements.messageInput.value = '';
     updateVoiceButtonAppearance();
 }
 
 // ==================== Speech Result Handler ====================
 function handleSpeechResult(transcript) {
-    console.log('Processing transcript:', transcript);
+    const cleanedTranscript = sanitizeTranscriptForChat(transcript);
+    if (!cleanedTranscript) {
+        return;
+    }
+    
+    console.log('Processing transcript:', cleanedTranscript);
     
     // Simple keyword matching
     const keywords = {
@@ -1255,8 +1339,8 @@ function handleSpeechResult(transcript) {
     
     let matchedAction = null;
     const normalizedTranscript = state.currentLang === 'en'
-        ? transcript.toLowerCase()
-        : transcript;
+        ? cleanedTranscript.toLowerCase()
+        : cleanedTranscript;
 
     const currentKeywords = keywords[state.currentLang];
     
@@ -1269,13 +1353,13 @@ function handleSpeechResult(transcript) {
     
     if (matchedAction) {
         const content = contentData[state.currentLang][matchedAction];
-        addUserMessage(transcript);
+        addUserMessage(cleanedTranscript);
         setTimeout(() => {
             addAssistantMessage(content.response, true);
         }, 300);
     } else {
         // Show default response
-        addUserMessage(transcript);
+        addUserMessage(cleanedTranscript);
         const defaultMsg = uiText[state.currentLang].defaultResponse;
         setTimeout(() => {
             addAssistantMessage(defaultMsg, false);
@@ -1355,7 +1439,7 @@ function addAssistantMessage(text, enableVoice = false) {
     
     showThinkingAnimation(textElement, cursorElement, () => {
         // 思考動畫結束後開始打字機效果
-        if (enableVoice && state.isVoiceEnabled) {
+        if (state.isVoiceEnabled && text && text.trim().length > 0) {
             speakText(text);
         }
         typewriterEffect(textElement, cursorElement, text);
@@ -1628,46 +1712,66 @@ function speakText(text) {
     const voices = speechSynthesis.getVoices();
     const targetLang = speechRecognitionLangCodes[state.currentLang] || utterance.lang;
     
-    // 多平台高品質語音優先名單
+    // 平台語音優先名單
     const preferredVoiceNames = {
-        'zh-TW': [
-            'Mei-Jia', 'Sin-Ji', 'Ting-Ting', 'Yu-shu',              // Apple
-            'Google 國語（臺灣）', 'Chinese (Taiwan)',                // Google
-            'Hanhan', 'Zhiwei', 'Microsoft Hanhan', 'Microsoft Zhiwei' // Microsoft
-        ],
-        'en-US': [
-            'Samantha', 'Alex', 'Ava', 'Zoe',                        // Apple
-            'Google US English', 'Google English',                    // Google
-            'David', 'Zira', 'Mark', 'Microsoft David', 'Microsoft Zira' // Microsoft
-        ],
-        'ja-JP': [
-            'Kyoko', 'Otoya', 'Hattori',                             // Apple
-            'Google 日本語', 'Japanese (Japan)',                      // Google
-            'Haruka', 'Ichiro', 'Microsoft Haruka', 'Microsoft Ichiro' // Microsoft
-        ],
-        'ko-KR': [
-            'Yuna', 'Sora',                                          // Apple
-            'Google 한국의', 'Korean (South Korea)',                  // Google
-            'Heami', 'Microsoft Heami'                               // Microsoft
-        ]
+        'zh-TW': {
+            apple: ['Mei-Jia', 'Sin-Ji', 'Ting-Ting', 'Yu-shu'],
+            android: ['Google 國語（臺灣）', 'Chinese (Taiwan)', 'Google 國語', 'Google Mandarin'],
+            windows: ['Hanhan', 'Zhiwei', 'Microsoft Hanhan', 'Microsoft Zhiwei'],
+            default: ['Mei-Jia', 'Google 國語（臺灣）', 'Microsoft Hanhan']
+        },
+        'en-US': {
+            apple: ['Samantha', 'Alex', 'Ava', 'Zoe', 'Allison', 'Victoria'],
+            android: ['Google US English', 'Google English', 'Google 語音英語'],
+            windows: ['David', 'Zira', 'Mark', 'Microsoft David', 'Microsoft Zira', 'Jenny'],
+            default: ['Samantha', 'Google US English', 'Microsoft David']
+        },
+        'ja-JP': {
+            apple: ['Kyoko', 'Otoya', 'Hattori'],
+            android: ['Google 日本語', 'Japanese (Japan)', 'Google 日本語 女性', 'Google 日本語 男性'],
+            windows: ['Haruka', 'Ichiro', 'Microsoft Haruka', 'Microsoft Ichiro'],
+            default: ['Kyoko', 'Google 日本語', 'Microsoft Haruka']
+        },
+        'ko-KR': {
+            apple: ['Yuna', 'Sora'],
+            android: ['Google 한국의', 'Korean (South Korea)', 'Google 한국어'],
+            windows: ['Heami', 'Microsoft Heami', 'Jina'],
+            default: ['Yuna', 'Google 한국의', 'Microsoft Heami']
+        }
     };
     
     let selectedVoice = null;
+    const platform = detectPlatform();
     
-    // 1. 優先選擇各平台的高品質語音
-    const preferredNames = preferredVoiceNames[targetLang] || [];
-    for (const name of preferredNames) {
+    // 1. 優先選擇裝置平台建議的高品質語音
+    const platformNames = preferredVoiceNames[targetLang]?.[platform] || [];
+    for (const name of platformNames) {
         selectedVoice = voices.find(voice => 
             (voice.name.includes(name) || voice.name === name) && 
             (voice.lang === targetLang || voice.lang.startsWith(targetLang.split('-')[0]))
         );
         if (selectedVoice) {
-            console.log('✓ 使用高品質語音:', selectedVoice.name, '(', selectedVoice.lang, ')');
+            console.log('✓ 使用平台語音:', selectedVoice.name, '(', selectedVoice.lang, ')');
             break;
         }
     }
     
-    // 2. 選擇本地高品質語音
+    // 2. 若平台沒找到，使用語言的預設偏好名單
+    if (!selectedVoice) {
+        const defaultNames = preferredVoiceNames[targetLang]?.default || [];
+        for (const name of defaultNames) {
+            selectedVoice = voices.find(voice =>
+                (voice.name.includes(name) || voice.name === name) &&
+                (voice.lang === targetLang || voice.lang.startsWith(targetLang.split('-')[0]))
+            );
+            if (selectedVoice) {
+                console.log('✓ 使用語言預設語音:', selectedVoice.name, '(', selectedVoice.lang, ')');
+                break;
+            }
+        }
+    }
+    
+    // 3. 選擇本地高品質語音
     if (!selectedVoice) {
         selectedVoice = voices.find(voice => 
             voice.lang === targetLang && 
@@ -1679,7 +1783,7 @@ function speakText(text) {
         }
     }
     
-    // 3. 選擇任何本地語音
+    // 4. 選擇任何本地語音
     if (!selectedVoice) {
         selectedVoice = voices.find(voice => voice.lang === targetLang && voice.localService);
         if (selectedVoice) {
@@ -1687,7 +1791,7 @@ function speakText(text) {
         }
     }
     
-    // 4. 選擇任何匹配的語音
+    // 5. 選擇任何匹配的語音
     if (!selectedVoice) {
         selectedVoice = voices.find(voice => voice.lang === targetLang);
         if (selectedVoice) {
@@ -1695,7 +1799,7 @@ function speakText(text) {
         }
     }
     
-    // 5. 選擇語言前綴匹配的語音
+    // 6. 選擇語言前綴匹配的語音
     if (!selectedVoice) {
         const langPrefix = targetLang.split('-')[0];
         selectedVoice = voices.find(voice => voice.lang.startsWith(langPrefix));
