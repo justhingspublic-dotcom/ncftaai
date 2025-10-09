@@ -17,6 +17,9 @@ const state = {
 
 // ==================== DOM Elements ====================
 const elements = {
+    welcomeScreen: document.getElementById('welcomeScreen'),
+    welcomeTitle: document.getElementById('welcomeTitle'),
+    welcomeSubtitle: document.getElementById('welcomeSubtitle'),
     chatContainer: document.getElementById('chatContainer'),
     messageInput: document.getElementById('messageInput'),
     voiceButton: document.getElementById('voiceButton'),
@@ -25,6 +28,7 @@ const elements = {
     voiceToggle: document.getElementById('voiceToggle'),
     typingToggle: document.getElementById('typingToggle'),
     langToggle: document.getElementById('langToggle'),
+    homeBtn: document.getElementById('homeBtn'),
     scrollToBottomBtn: document.getElementById('scrollToBottomBtn'),
     infoButton: document.getElementById('infoButton'),
     infoButtonText: document.getElementById('infoButtonText'),
@@ -75,6 +79,8 @@ const categoryConfig = [
 const uiText = {
     'zh-TW': {
         welcome: '歡迎來到宜蘭傳藝園區！我可以協助您了解展覽資訊、交通方式、當期表演等內容。',
+        welcomeTitle: '歡迎來到宜蘭傳藝園區',
+        welcomeSubtitle: '選擇語言',
         infoButton: '園區資訊',
         infoButtonTitle: '顯示建議',
         inputPlaceholder: {
@@ -94,7 +100,8 @@ const uiText = {
             voiceToggle: '語音開關',
             textSizeToggle: '文字大小',
             langToggle: '語言切換',
-            clearChat: '清空對話'
+            clearChat: '清空對話',
+            home: '回到首頁'
         },
         categories: {
             exhibitions: { title: '展覽訊息', imageAlt: '展覽' },
@@ -105,6 +112,8 @@ const uiText = {
     },
     en: {
         welcome: 'Welcome to the National Center for Traditional Arts! I can help with exhibitions, transportation, performances, and more.',
+        welcomeTitle: 'Welcome to Traditional Arts Center',
+        welcomeSubtitle: 'Select Language',
         infoButton: 'Park Info',
         infoButtonTitle: 'Show suggestions',
         inputPlaceholder: {
@@ -124,7 +133,8 @@ const uiText = {
             voiceToggle: 'Voice toggle',
             textSizeToggle: 'Text size',
             langToggle: 'Switch language',
-            clearChat: 'Clear chat'
+            clearChat: 'Clear chat',
+            home: 'Home'
         },
         categories: {
             exhibitions: { title: 'Exhibitions', imageAlt: 'Exhibitions' },
@@ -135,6 +145,8 @@ const uiText = {
     },
     'ja': {
         welcome: '国立伝統芸術センターへようこそ！展覧会、交通、公演などについてご案内いたします。',
+        welcomeTitle: '国立伝統芸術センターへようこそ',
+        welcomeSubtitle: '言語を選択',
         infoButton: '園区情報',
         infoButtonTitle: '提案を表示',
         inputPlaceholder: {
@@ -154,7 +166,8 @@ const uiText = {
             voiceToggle: '音声切替',
             textSizeToggle: '文字サイズ',
             langToggle: '言語切替',
-            clearChat: 'チャットをクリア'
+            clearChat: 'チャットをクリア',
+            home: 'ホーム'
         },
         categories: {
             exhibitions: { title: '展覧会情報', imageAlt: '展覧会' },
@@ -165,6 +178,8 @@ const uiText = {
     },
     'ko': {
         welcome: '국립전통예술센터에 오신 것을 환영합니다! 전시, 교통, 공연 등에 대해 안내해 드리겠습니다.',
+        welcomeTitle: '국립전통예술센터에 오신 것을 환영합니다',
+        welcomeSubtitle: '언어 선택',
         infoButton: '원구정보',
         infoButtonTitle: '제안 표시',
         inputPlaceholder: {
@@ -184,7 +199,8 @@ const uiText = {
             voiceToggle: '음성 전환',
             textSizeToggle: '글자 크기',
             langToggle: '언어 전환',
-            clearChat: '대화 지우기'
+            clearChat: '대화 지우기',
+            home: '홈'
         },
         categories: {
             exhibitions: { title: '전시 정보', imageAlt: '전시' },
@@ -647,10 +663,12 @@ function submitOverlayTranscript() {
 
 // ==================== Initialization ====================
 function init() {
+    loadPreferences();
+    checkFirstVisit();
     populateCategoryCards(elements.suggestionCards, state.currentLang);
     setupEventListeners();
+    setupWelcomeScreen();
     setupSpeechRecognition();
-    loadPreferences();
     updateUILanguage();
     updateVoiceButtonAppearance();
     if (elements.speechOverlaySend) {
@@ -667,6 +685,138 @@ function init() {
     }
 }
 
+// ==================== Welcome Screen ====================
+function checkFirstVisit() {
+    const hasVisited = localStorage.getItem('hasVisitedHome');
+    if (hasVisited) {
+        // 已訪問過，隱藏歡迎畫面
+        if (elements.welcomeScreen) {
+            elements.welcomeScreen.classList.add('hidden');
+            document.body.classList.remove('welcome-active');
+        }
+    } else {
+        // 首次訪問，顯示歡迎畫面
+        if (elements.welcomeScreen) {
+            document.body.classList.add('welcome-active');
+            updateWelcomeScreenText();
+        }
+    }
+}
+
+function setupWelcomeScreen() {
+    if (!elements.welcomeScreen) {
+        return;
+    }
+    
+    const welcomeLanguageBtns = elements.welcomeScreen.querySelectorAll('.welcome-language-btn');
+    welcomeLanguageBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const lang = btn.dataset.lang;
+            handleWelcomeLanguageSelect(lang);
+        });
+    });
+}
+
+function showWelcomeScreen() {
+    if (!elements.welcomeScreen) {
+        return;
+    }
+    
+    // 停止語音識別
+    if (state.isListening) {
+        stopListening();
+    }
+    
+    // 更新 welcome screen 的文字（根據當前語言）
+    updateWelcomeScreenText();
+    
+    // 清空聊天記錄
+    clearChatForHome();
+    
+    // 顯示 welcome screen
+    document.body.classList.add('welcome-active');
+    elements.welcomeScreen.classList.remove('hidden', 'slide-out');
+}
+
+function updateWelcomeScreenText() {
+    const langText = uiText[state.currentLang];
+    if (elements.welcomeTitle) {
+        elements.welcomeTitle.textContent = langText.welcomeTitle;
+    }
+    if (elements.welcomeSubtitle) {
+        elements.welcomeSubtitle.textContent = langText.welcomeSubtitle;
+    }
+}
+
+function handleWelcomeLanguageSelect(lang) {
+    // 設置語言
+    state.currentLang = lang;
+    
+    // Update speech recognition language
+    if (state.recognition) {
+        state.recognition.lang = speechRecognitionLangCodes[lang] || lang;
+    }
+    
+    // Update body class for font switching
+    document.body.className = document.body.className.replace(/lang-\S+/g, '').trim();
+    document.body.classList.add(`lang-${lang}`);
+    
+    // 標記為已訪問
+    localStorage.setItem('hasVisitedHome', 'true');
+    
+    // 觸發滑出動畫
+    if (elements.welcomeScreen) {
+        elements.welcomeScreen.classList.add('slide-out');
+        
+        // 動畫結束後隱藏元素並移除 body 的鎖定
+        setTimeout(() => {
+            elements.welcomeScreen.classList.add('hidden');
+            document.body.classList.remove('welcome-active');
+        }, 1200); // 與 CSS transition 時間一致
+    }
+    
+    // Update UI text
+    updateUILanguage();
+    updateLanguageButton();
+    savePreferences();
+}
+
+function clearChatForHome() {
+    // 清空聊天容器並重新建立初始內容
+    elements.chatContainer.innerHTML = '';
+    
+    // 重新添加歡迎消息
+    const welcomeGroup = document.createElement('div');
+    welcomeGroup.className = 'message-group assistant-group';
+    welcomeGroup.innerHTML = `
+        <div class="message-avatar">
+            <img src="3c25cb87ae.png" alt="AI助理" class="avatar-img">
+        </div>
+        <div class="message-content">
+            <div class="message-bubble assistant-bubble">
+                <span id="welcomeMessage">${uiText[state.currentLang].welcome}</span>
+            </div>
+        </div>
+    `;
+    elements.chatContainer.appendChild(welcomeGroup);
+    
+    // 重新添加建議卡片
+    const cardsContainer = document.createElement('div');
+    cardsContainer.className = 'category-cards-container';
+    cardsContainer.id = 'suggestionCards';
+    populateCategoryCards(cardsContainer, state.currentLang);
+    elements.chatContainer.appendChild(cardsContainer);
+    
+    // 更新 elements 引用
+    elements.suggestionCards = document.getElementById('suggestionCards');
+    elements.welcomeMessage = document.getElementById('welcomeMessage');
+    
+    // 清空輸入框
+    elements.messageInput.value = '';
+    state.finalTranscript = '';
+    updateVoiceButtonAppearance();
+}
+
 // ==================== Event Listeners ====================
 function setupEventListeners() {
     // Voice / send button
@@ -680,6 +830,9 @@ function setupEventListeners() {
     
     // Typing toggle
     elements.typingToggle.addEventListener('click', toggleTypingMode);
+    
+    // Home button
+    elements.homeBtn.addEventListener('click', showWelcomeScreen);
     
     // Language toggle - open modal
     elements.langToggle.addEventListener('click', openLanguageModal);
@@ -1438,6 +1591,7 @@ function updateUILanguage() {
     elements.textSizeToggle.title = langText.header.textSizeToggle;
     elements.langToggle.title = langText.header.langToggle;
     elements.clearChatBtn.title = langText.header.clearChat;
+    elements.homeBtn.title = langText.header.home;
     if (elements.speechOverlaySend) {
         elements.speechOverlaySend.title = langText.overlaySendTitle;
     }

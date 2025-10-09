@@ -30,6 +30,32 @@
     <meta name="mobile-web-app-capable" content="yes">
 </head>
 <body>
+    <!-- Welcome Language Selector -->
+    <div class="welcome-screen" id="welcomeScreen">
+        <div class="welcome-content">
+            <h1 class="welcome-title" id="welcomeTitle">歡迎來到宜蘭傳藝園區</h1>
+            <p class="welcome-text" id="welcomeSubtitle">選擇語言</p>
+            <div class="welcome-language-options">
+                <button class="welcome-language-btn" data-lang="zh-TW">
+                    <span class="welcome-lang-icon">中</span>
+                    <span class="welcome-lang-name">繁體中文</span>
+                </button>
+                <button class="welcome-language-btn" data-lang="en">
+                    <span class="welcome-lang-icon">A</span>
+                    <span class="welcome-lang-name">English</span>
+                </button>
+                <button class="welcome-language-btn" data-lang="ja">
+                    <span class="welcome-lang-icon">あ</span>
+                    <span class="welcome-lang-name">日本語</span>
+                </button>
+                <button class="welcome-language-btn" data-lang="ko">
+                    <span class="welcome-lang-icon">한</span>
+                    <span class="welcome-lang-name">한국어</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Header -->
     <header class="header">
         <div class="header-left">
@@ -38,6 +64,9 @@
             </div>
         </div>
         <div class="header-right">
+            <button class="header-btn" id="homeBtn" title="回到首頁">
+                <span class="material-symbols-outlined">home</span>
+            </button>
             <button class="header-btn" id="voiceToggle" title="語音開關">
                 <span class="material-symbols-outlined">volume_up</span>
             </button>

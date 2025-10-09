@@ -59,6 +59,11 @@ body {
     transition: background 0.3s ease, color 0.3s ease;
 }
 
+/* Prevent scrolling when welcome screen is active */
+body.welcome-active {
+    overflow: hidden;
+}
+
 body.lang-en,
 body.lang-ja,
 body.lang-ko {
@@ -86,6 +91,118 @@ body.lang-en .message-bubble,
 body.lang-ja .message-bubble,
 body.lang-ko .message-bubble {
     font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ==================== Welcome Screen ==================== */
+.welcome-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--background-color);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1), 
+                opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.welcome-screen.slide-out {
+    transform: translateY(-100%);
+    opacity: 0;
+}
+
+.welcome-screen.hidden {
+    display: none;
+}
+
+.welcome-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-xl);
+    animation: welcomeFadeIn 0.8s ease;
+}
+
+.welcome-logo {
+    height: 28px;
+    width: auto;
+    object-fit: contain;
+    padding: var(--spacing-md);
+    background: var(--primary-color);
+    border-radius: var(--radius-md);
+}
+
+.welcome-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin: 0;
+    text-align: center;
+}
+
+.welcome-text {
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--primary-color);
+    margin: 0;
+    text-align: center;
+}
+
+.welcome-language-options {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    min-width: 280px;
+}
+
+.welcome-language-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+    padding: var(--spacing-lg) var(--spacing-xl);
+    border: 2px solid rgba(201, 74, 71, 0.2);
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: 'Noto Serif HK', 'Noto Sans TC', 'Inter', serif;
+}
+
+.welcome-language-btn:active {
+    transform: scale(0.98);
+}
+
+.welcome-lang-icon {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--primary-color);
+    min-width: 40px;
+    text-align: center;
+    font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.welcome-lang-name {
+    font-size: 20px;
+    color: var(--text-color);
+    font-weight: 500;
+    flex: 1;
+}
+
+@keyframes welcomeFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* ==================== Header ==================== */
