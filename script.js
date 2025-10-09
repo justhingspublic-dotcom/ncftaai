@@ -33,8 +33,7 @@ const elements = {
     clearChatBtn: document.getElementById('clearChatBtn'),
     speechOverlay: document.getElementById('speechOverlay'),
     speechOverlayText: document.getElementById('speechOverlayText'),
-    speechOverlaySend: document.getElementById('speechOverlaySend'),
-    speechOverlayClose: document.getElementById('speechOverlayClose')
+    speechOverlaySend: document.getElementById('speechOverlaySend')
 };
 
 // ==================== Language Icons ====================
@@ -717,12 +716,6 @@ function setupEventListeners() {
     
     if (elements.speechOverlaySend) {
         elements.speechOverlaySend.addEventListener('click', submitOverlayTranscript);
-    }
-    
-    if (elements.speechOverlayClose) {
-        elements.speechOverlayClose.addEventListener('click', () => {
-            stopListening();
-        });
     }
     
     // Manual input events
