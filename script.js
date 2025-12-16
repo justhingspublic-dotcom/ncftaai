@@ -13,7 +13,8 @@ const state = {
     overlayHideTimeout: null,
     overlayTranscript: '',
     silenceTimeout: null, // 無語音計時器
-    hasRecognizedText: false // 是否已經辨識到文字
+    hasRecognizedText: false, // 是否已經辨識到文字
+    currentVoiceBubble: null // 當前正在輸入的語音氣泡
 };
 
 // ==================== DOM Elements ====================
@@ -1038,10 +1039,10 @@ function setupSpeechRecognition() {
         state.finalTranscript = state.finalSegments.join(state.currentLang === 'en' ? ' ' : '').trim();
         const fullText = joinFinalSegments(interimTranscript);
 
+        // 更新語音輸入氣泡
+        updateVoiceInputBubble(fullText);
         elements.messageInput.value = fullText;
         updateVoiceButtonAppearance();
-        // updateSpeechOverlay(fullText);
-        // updateVoicePanelText(fullText);
         
         // 一旦有辨識到文字，標記為已辨識並重新啟動靜音計時器
         if (fullText.trim().length > 0) {
@@ -1056,6 +1057,8 @@ function setupSpeechRecognition() {
     state.recognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
         if (event.error === 'no-speech') {
+            // 沒有語音，移除氣泡並停止
+            removeVoiceInputBubble();
             stopListening();
             return;
         }
@@ -1065,6 +1068,8 @@ function setupSpeechRecognition() {
             return;
         }
         
+        // 其他錯誤也要清理氣泡
+        removeVoiceInputBubble();
         stopListening();
         elements.messageInput.placeholder = uiText[state.currentLang].clarifyPrompt;
         setTimeout(() => {
@@ -1088,6 +1093,7 @@ function setupSpeechRecognition() {
 function handleSpeechRecognitionUnavailable(showNotice = false) {
     // hideSpeechOverlay({ immediate: true });
     // collapseVoicePanel();
+    removeVoiceInputBubble();
     state.isSpeechSupported = false;
     state.recognition = null;
     state.isListening = false;
@@ -1229,17 +1235,17 @@ function startListening() {
     
     console.log('開始聆聽');
     state.isListening = true;
-    state.hasRecognizedText = false; // 重置辨識狀態
-    state.finalTranscript = ''; // 清空之前的文字
+    state.hasRecognizedText = false;
+    state.finalTranscript = '';
     state.finalSegments = [];
     elements.messageInput.value = '';
     setTemporaryPlaceholder('listening');
     updateVoiceButtonAppearance();
-    // updateSpeechOverlay(getListeningPromptText());
-    // expandVoicePanel();
-    // updateVoicePanelText(getListeningPromptText(), true);
     
-    // 啟動10秒無語音計時器（只在開始時啟動一次）
+    // 創建語音輸入氣泡
+    state.currentVoiceBubble = createVoiceInputBubble();
+    
+    // 啟動10秒無語音計時器
     startSilenceTimeout();
     
     try {
@@ -1257,7 +1263,7 @@ function stopListening() {
     // 準備送出的文字（如果有的話）
     const textToSend = state.finalTranscript || elements.messageInput.value;
 
-    state.hasRecognizedText = false; // 重置辨識狀態
+    state.hasRecognizedText = false;
     state.finalSegments = [];
     applyMessagePlaceholder();
     
@@ -1272,20 +1278,150 @@ function stopListening() {
         }
     }
     
-    // 使用淡出動畫隱藏對話框
-    // hideSpeechOverlay({ delay: 0 });
-    // collapseVoicePanel();
-    
-    // 清空保存的結果
-    state.finalTranscript = '';
-    state.overlayTranscript = '';
-    elements.messageInput.value = '';
-    updateVoiceButtonAppearance();
-
-    // 自動送出（如果有文字）
+    // 處理語音輸入氣泡
     if (textToSend && textToSend.trim()) {
-        handleSpeechResult(textToSend);
+        // 有文字：完成氣泡樣式，保留在對話中
+        finalizeVoiceInputBubble();
+        state.currentVoiceBubble = null;
+        
+        // 清空保存的結果
+        state.finalTranscript = '';
+        state.overlayTranscript = '';
+        elements.messageInput.value = '';
+        updateVoiceButtonAppearance();
+        
+        // 觸發 AI 回應
+        setTimeout(() => {
+            const content = matchContentByKeyword(textToSend);
+            if (content) {
+                addAssistantMessage(content.response, true);
+            } else {
+                addAssistantMessage(uiText[state.currentLang].defaultResponse, false);
+            }
+        }, 300);
+    } else {
+        // 沒文字：移除氣泡
+        removeVoiceInputBubble();
+        
+        // 清空保存的結果
+        state.finalTranscript = '';
+        state.overlayTranscript = '';
+        elements.messageInput.value = '';
+        updateVoiceButtonAppearance();
     }
+}
+
+// ==================== Keyword Matching ====================
+function matchContentByKeyword(transcript) {
+    const cleanedTranscript = sanitizeTranscriptForChat(transcript);
+    if (!cleanedTranscript) {
+        return null;
+    }
+    
+    // Simple keyword matching
+    const keywords = {
+        'zh-TW': {
+            '票價': 'tickets',
+            '地圖': 'tickets',
+            '門票': 'tickets',
+            '購票': 'tickets',
+            '交通': 'traffic',
+            '設施': 'facilities',
+            '時間': 'facilities',
+            '齊天': 'performance1',
+            '大聖': 'performance1',
+            '龍宮': 'performance1',
+            '接班': 'performance2',
+            '好戲': 'performance2',
+            '臺鼓': 'performance3',
+            '晨鐘': 'performance3',
+            '建築': 'renovation',
+            '整修': 'renovation',
+            '職人': 'craftsman',
+            '工藝': 'craftsman',
+            '舉人': 'scholar'
+        },
+        'en': {
+            'ticket': 'tickets',
+            'map': 'tickets',
+            'price': 'tickets',
+            'transport': 'traffic',
+            'traffic': 'traffic',
+            'facilities': 'facilities',
+            'hours': 'facilities',
+            'monkey': 'performance1',
+            'king': 'performance1',
+            'rising': 'performance2',
+            'stars': 'performance2',
+            'drum': 'performance3',
+            'morning': 'performance3',
+            'building': 'renovation',
+            'restoration': 'renovation',
+            'craftsman': 'craftsman',
+            'craft': 'craftsman',
+            'scholar': 'scholar'
+        },
+        'ja': {
+            'チケット': 'tickets',
+            '地図': 'tickets',
+            '料金': 'tickets',
+            '交通': 'traffic',
+            '施設': 'facilities',
+            '時間': 'facilities',
+            '斉天': 'performance1',
+            '大聖': 'performance1',
+            '龍宮': 'performance1',
+            '後継': 'performance2',
+            '舞台': 'performance2',
+            '太鼓': 'performance3',
+            '朝': 'performance3',
+            '建築': 'renovation',
+            '修復': 'renovation',
+            '職人': 'craftsman',
+            '工芸': 'craftsman',
+            '挙人': 'scholar'
+        },
+        'ko': {
+            '티켓': 'tickets',
+            '지도': 'tickets',
+            '요금': 'tickets',
+            '교통': 'traffic',
+            '시설': 'facilities',
+            '시간': 'facilities',
+            '제천': 'performance1',
+            '대성': 'performance1',
+            '용궁': 'performance1',
+            '후계': 'performance2',
+            '무대': 'performance2',
+            '북': 'performance3',
+            '아침': 'performance3',
+            '건축': 'renovation',
+            '복원': 'renovation',
+            '장인': 'craftsman',
+            '공예': 'craftsman',
+            '거인': 'scholar'
+        }
+    };
+    
+    let matchedAction = null;
+    const normalizedTranscript = state.currentLang === 'en'
+        ? cleanedTranscript.toLowerCase()
+        : cleanedTranscript;
+
+    const currentKeywords = keywords[state.currentLang];
+    
+    for (const [keyword, action] of Object.entries(currentKeywords)) {
+        if (normalizedTranscript.includes(keyword)) {
+            matchedAction = action;
+            break;
+        }
+    }
+    
+    if (matchedAction) {
+        return contentData[state.currentLang][matchedAction];
+    }
+    
+    return null;
 }
 
 // ==================== Speech Result Handler ====================
@@ -1433,6 +1569,108 @@ function handleCardClick(title, response) {
     }, 300);
 }
 
+// ==================== Voice Input Bubble Management ====================
+function createVoiceInputBubble() {
+    const messageGroup = document.createElement('div');
+    messageGroup.className = 'message-group user-group voice-input-bubble';
+    messageGroup.dataset.voiceInput = 'true';
+
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    const avatarIcon = document.createElement('span');
+    avatarIcon.className = 'material-symbols-outlined';
+    avatarIcon.textContent = 'person';
+    avatar.appendChild(avatarIcon);
+
+    const content = document.createElement('div');
+    content.className = 'message-content';
+    const bubble = document.createElement('div');
+    bubble.className = 'message-bubble user-bubble voice-bubble-input';
+    
+    // 添加聆聽提示
+    const listeningIndicator = document.createElement('span');
+    listeningIndicator.className = 'voice-listening-indicator';
+    listeningIndicator.innerHTML = `
+        <span class="material-symbols-outlined">graphic_eq</span>
+        <span class="listening-text">${uiText[state.currentLang].inputPlaceholder.listening}</span>
+    `;
+    bubble.appendChild(listeningIndicator);
+    
+    const textSpan = document.createElement('span');
+    textSpan.className = 'voice-bubble-text';
+    bubble.appendChild(textSpan);
+    
+    content.appendChild(bubble);
+    messageGroup.appendChild(avatar);
+    messageGroup.appendChild(content);
+
+    elements.chatContainer.appendChild(messageGroup);
+    scrollToBottom();
+    
+    return messageGroup;
+}
+
+function updateVoiceInputBubble(text) {
+    if (!state.currentVoiceBubble) return;
+    
+    const textSpan = state.currentVoiceBubble.querySelector('.voice-bubble-text');
+    const indicator = state.currentVoiceBubble.querySelector('.voice-listening-indicator');
+    
+    if (text && text.trim()) {
+        if (indicator) {
+            indicator.style.display = 'none';
+        }
+        if (textSpan) {
+            textSpan.textContent = text;
+            textSpan.style.display = 'inline';
+        }
+    } else {
+        if (indicator) {
+            indicator.style.display = 'flex';
+        }
+        if (textSpan) {
+            textSpan.textContent = '';
+            textSpan.style.display = 'none';
+        }
+    }
+    scrollToBottom();
+}
+
+function finalizeVoiceInputBubble() {
+    if (!state.currentVoiceBubble) return;
+    
+    const bubble = state.currentVoiceBubble.querySelector('.user-bubble');
+    const indicator = state.currentVoiceBubble.querySelector('.voice-listening-indicator');
+    const textSpan = state.currentVoiceBubble.querySelector('.voice-bubble-text');
+    
+    // 移除聆聽指示器
+    if (indicator) {
+        indicator.remove();
+    }
+    
+    // 移除特殊樣式
+    if (bubble) {
+        bubble.classList.remove('voice-bubble-input');
+    }
+    
+    state.currentVoiceBubble.classList.remove('voice-input-bubble');
+    state.currentVoiceBubble.removeAttribute('data-voice-input');
+    
+    // 如果有文字，保留純文字內容
+    if (textSpan && textSpan.textContent.trim()) {
+        if (bubble) {
+            bubble.textContent = textSpan.textContent;
+        }
+    }
+}
+
+function removeVoiceInputBubble() {
+    if (state.currentVoiceBubble && state.currentVoiceBubble.parentNode) {
+        state.currentVoiceBubble.remove();
+    }
+    state.currentVoiceBubble = null;
+}
+
 // ==================== Message Management ====================
 function addUserMessage(text) {
     const messageGroup = document.createElement('div');
@@ -1568,6 +1806,9 @@ function clearChat() {
     if (state.isListening) {
         stopListening();
     }
+    
+    // 清除語音氣泡
+    removeVoiceInputBubble();
     
     // 清空輸入框
     elements.messageInput.value = '';

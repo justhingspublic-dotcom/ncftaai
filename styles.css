@@ -946,6 +946,64 @@ body.lang-ko .message-bubble {
     margin-bottom: 2px;
 }
 
+/* ==================== Voice Input Bubble ==================== */
+.voice-input-bubble {
+    animation: voiceBubbleFadeIn 0.3s ease;
+}
+
+.voice-bubble-input {
+    position: relative;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    animation: voiceBubblePulse 2s ease-in-out infinite;
+}
+
+.voice-listening-indicator {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.voice-listening-indicator .material-symbols-outlined {
+    font-size: 24px;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.listening-text {
+    font-size: 20px;
+    opacity: 0.9;
+    line-height: 1.6;
+}
+
+.voice-bubble-text {
+    display: none;
+    font-size: 20px;
+    line-height: 1.6;
+}
+
+@keyframes voiceBubbleFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes voiceBubblePulse {
+    0%, 100% {
+        box-shadow: 0 2px 8px rgba(201, 74, 71, 0.2);
+    }
+    50% {
+        box-shadow: 0 4px 16px rgba(201, 74, 71, 0.35);
+    }
+}
+
 /* ==================== Animations ==================== */
 @keyframes fadeInUp {
     from {
