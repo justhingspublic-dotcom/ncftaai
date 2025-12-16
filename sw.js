@@ -1,5 +1,5 @@
 // Service Worker for 傳藝園區AI小幫手
-const CACHE_VERSION = 'v1.0.0';
+const CACHE_VERSION = 'v1.1.0'; // 更新版本以清除舊快取
 const CACHE_NAME = `chuanyii-ai-${CACHE_VERSION}`;
 
 // 需要快取的檔案
