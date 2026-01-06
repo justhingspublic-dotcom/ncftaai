@@ -42,7 +42,20 @@ const elements = {
     speechOverlaySend: document.getElementById('speechOverlaySend'),
     inputContainer: document.getElementById('inputContainer'),
     voicePanel: document.getElementById('voicePanel'),
-    voiceTextDisplay: document.getElementById('voiceTextDisplay')
+    voiceTextDisplay: document.getElementById('voiceTextDisplay'),
+    
+    // Mobile Menu Elements
+    mobileMenuBtn: document.getElementById('mobileMenuBtn'),
+    mobileMenu: document.getElementById('mobileMenu'),
+    mobileMenuOverlay: document.getElementById('mobileMenuOverlay'),
+    mobileMenuCloseBtn: document.getElementById('mobileMenuCloseBtn'),
+    mobileTextSizeBtn: document.getElementById('mobileTextSizeBtn'),
+    mobileTextSizeLabel: document.getElementById('mobileTextSizeLabel'),
+    mobileVoiceBtn: document.getElementById('mobileVoiceBtn'),
+    mobileTypingBtn: document.getElementById('mobileTypingBtn'),
+    mobileClearChatBtn: document.getElementById('mobileClearChatBtn'),
+    mobileHomeBtn: document.getElementById('mobileHomeBtn'),
+    mobileLangBtns: document.querySelectorAll('.mobile-lang-btn')
 };
 
 // ==================== Expanded Panel Logic (Disabled) ====================
@@ -760,6 +773,7 @@ function init() {
     setupSpeechRecognition();
     updateUILanguage();
     updateVoiceButtonAppearance();
+    updateMobileMenuState();
     if (elements.speechOverlaySend) {
         elements.speechOverlaySend.disabled = true;
         elements.speechOverlaySend.classList.remove('listening');
@@ -868,6 +882,7 @@ function handleWelcomeLanguageSelect(lang) {
     updateUILanguage();
     updateLanguageButton();
     savePreferences();
+    updateMobileMenuState();
 }
 
 function clearChatForHome() {
@@ -976,6 +991,154 @@ function setupEventListeners() {
     
     // Scroll event listener
     window.addEventListener('scroll', handleScroll);
+    
+    // Mobile Menu Listeners
+    setupMobileMenuListeners();
+}
+
+function setupMobileMenuListeners() {
+    // Toggle Menu
+    if (elements.mobileMenuBtn) {
+        elements.mobileMenuBtn.addEventListener('click', openMobileMenu);
+    }
+    
+    if (elements.mobileMenuCloseBtn) {
+        elements.mobileMenuCloseBtn.addEventListener('click', closeMobileMenu);
+    }
+    
+    if (elements.mobileMenuOverlay) {
+        elements.mobileMenuOverlay.addEventListener('click', closeMobileMenu);
+    }
+    
+    // Mobile Language Selection
+    if (elements.mobileLangBtns) {
+        elements.mobileLangBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const lang = btn.dataset.lang;
+                selectLanguage(lang);
+                closeMobileMenu();
+            });
+        });
+    }
+    
+    // Mobile Settings
+    if (elements.mobileTextSizeBtn) {
+        elements.mobileTextSizeBtn.addEventListener('click', () => {
+            toggleTextSize();
+            updateMobileMenuState();
+        });
+    }
+    
+    if (elements.mobileVoiceBtn) {
+        elements.mobileVoiceBtn.addEventListener('click', () => {
+            toggleVoiceEnabled();
+            updateMobileMenuState();
+        });
+    }
+    
+    if (elements.mobileTypingBtn) {
+        elements.mobileTypingBtn.addEventListener('click', () => {
+            if (!state.isSpeechSupported) {
+                alert(uiText[state.currentLang].speechUnsupported);
+                return;
+            }
+            toggleTypingMode();
+            updateMobileMenuState();
+        });
+    }
+    
+    // Mobile Actions
+    if (elements.mobileClearChatBtn) {
+        elements.mobileClearChatBtn.addEventListener('click', () => {
+            clearChat();
+            closeMobileMenu();
+        });
+    }
+    
+    if (elements.mobileHomeBtn) {
+        elements.mobileHomeBtn.addEventListener('click', () => {
+            showWelcomeScreen();
+            closeMobileMenu();
+        });
+    }
+}
+
+function openMobileMenu() {
+    if (elements.mobileMenu && elements.mobileMenuOverlay) {
+        updateMobileMenuState();
+        elements.mobileMenu.classList.remove('hidden');
+        elements.mobileMenuOverlay.classList.remove('hidden');
+        document.body.classList.add('menu-open');
+        
+        // Trigger animations
+        requestAnimationFrame(() => {
+            elements.mobileMenu.classList.add('active');
+            elements.mobileMenuOverlay.classList.add('active');
+        });
+    }
+}
+
+function closeMobileMenu() {
+    if (elements.mobileMenu && elements.mobileMenuOverlay) {
+        elements.mobileMenu.classList.remove('active');
+        elements.mobileMenuOverlay.classList.remove('active');
+        document.body.classList.remove('menu-open');
+        
+        // Wait for animation to finish
+        setTimeout(() => {
+            elements.mobileMenu.classList.add('hidden');
+            elements.mobileMenuOverlay.classList.add('hidden');
+        }, 300);
+    }
+}
+
+function updateMobileMenuState() {
+    // Update Language Selection
+    if (elements.mobileLangBtns) {
+        elements.mobileLangBtns.forEach(btn => {
+            if (btn.dataset.lang === state.currentLang) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+    
+    // Update Text Size Label
+    if (elements.mobileTextSizeLabel) {
+        const sizeLabels = {
+            'zh-TW': { small: '小', medium: '中', large: '大' },
+            'en': { small: 'S', medium: 'M', large: 'L' },
+            'ja': { small: '小', medium: '中', large: '大' },
+            'ko': { small: '소', medium: '중', large: '대' }
+        };
+        const langLabels = sizeLabels[state.currentLang] || sizeLabels['zh-TW'];
+        elements.mobileTextSizeLabel.textContent = langLabels[state.textSize];
+    }
+    
+    // Update Voice Switch
+    if (elements.mobileVoiceBtn) {
+        const toggle = elements.mobileVoiceBtn.querySelector('.toggle-switch');
+        if (toggle) {
+            if (state.isVoiceEnabled) {
+                toggle.classList.add('active');
+            } else {
+                toggle.classList.remove('active');
+            }
+        }
+    }
+    
+    // Update Typing Switch
+    if (elements.mobileTypingBtn) {
+        const toggle = elements.mobileTypingBtn.querySelector('.toggle-switch');
+        if (toggle) {
+            if (state.isTypingEnabled) {
+                toggle.classList.add('active');
+            } else {
+                toggle.classList.remove('active');
+            }
+        }
+    }
 }
 
 // ==================== Speech Recognition ====================
@@ -1166,6 +1329,7 @@ function toggleTypingMode() {
     });
 
     savePreferences();
+    updateMobileMenuState();
 }
 
 function applyTypingModeState({ focusInput = false, preserveValue = false } = {}) {
@@ -1880,6 +2044,7 @@ function toggleTextSize() {
     elements.chatContainer.classList.add(`text-${state.textSize}`);
     
     savePreferences();
+    updateMobileMenuState();
 }
 
 // ==================== Voice Toggle ====================
@@ -1894,6 +2059,7 @@ function toggleVoiceEnabled() {
     }
     
     savePreferences();
+    updateMobileMenuState();
 }
 
 // ==================== Language Toggle ====================
@@ -1922,6 +2088,7 @@ function selectLanguage(lang) {
     updateUILanguage();
     updateLanguageButton();
     savePreferences();
+    updateMobileMenuState();
 }
 
 function updateLanguageButton() {

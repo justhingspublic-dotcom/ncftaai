@@ -64,23 +64,31 @@
             </div>
         </div>
         <div class="header-right">
-            <button class="header-btn" id="homeBtn" title="回到首頁">
-                <span class="material-symbols-outlined">home</span>
-            </button>
-            <button class="header-btn" id="voiceToggle" title="語音開關">
-                <span class="material-symbols-outlined">volume_up</span>
-            </button>
-            <button class="header-btn" id="textSizeToggle" title="文字大小">
-                <span class="material-symbols-outlined">format_size</span>
-            </button>
-            <button class="header-btn" id="typingToggle" title="開啟打字">
-                <span class="material-symbols-outlined">keyboard</span>
-            </button>
-            <button class="header-btn" id="langToggle" title="語言切換">
-                <span class="lang-text">中</span>
-            </button>
-            <button class="header-btn" id="clearChatBtn" title="清空對話">
-                <span class="material-symbols-outlined">refresh</span>
+            <!-- Desktop Buttons -->
+            <div class="desktop-header-controls">
+                <button class="header-btn" id="homeBtn" title="回到首頁">
+                    <span class="material-symbols-outlined">home</span>
+                </button>
+                <button class="header-btn" id="voiceToggle" title="語音開關">
+                    <span class="material-symbols-outlined">volume_up</span>
+                </button>
+                <button class="header-btn" id="textSizeToggle" title="文字大小">
+                    <span class="material-symbols-outlined">format_size</span>
+                </button>
+                <button class="header-btn" id="typingToggle" title="開啟打字">
+                    <span class="material-symbols-outlined">keyboard</span>
+                </button>
+                <button class="header-btn" id="langToggle" title="語言切換">
+                    <span class="lang-text">中</span>
+                </button>
+                <button class="header-btn" id="clearChatBtn" title="清空對話">
+                    <span class="material-symbols-outlined">refresh</span>
+                </button>
+            </div>
+            
+            <!-- Mobile Menu Button -->
+            <button class="header-btn mobile-only hidden" id="mobileMenuBtn" title="選單">
+                <span class="material-symbols-outlined">menu</span>
             </button>
         </div>
     </header>
@@ -164,6 +172,88 @@
                 <span class="language-icon">한</span>
                 <span class="language-name">한국어</span>
             </button>
+        </div>
+    </div>
+
+    <!-- Mobile Menu Overlay -->
+    <div class="mobile-menu-overlay hidden" id="mobileMenuOverlay"></div>
+    <div class="mobile-menu hidden" id="mobileMenu">
+        <div class="mobile-menu-header">
+            <span class="mobile-menu-title">設定</span>
+            <button class="mobile-menu-close" id="mobileMenuCloseBtn">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        
+        <div class="mobile-menu-content">
+            <!-- Language Section -->
+            <div class="mobile-menu-section">
+                <h3 class="mobile-section-title">語言 Language</h3>
+                <div class="mobile-lang-grid">
+                    <button class="mobile-lang-btn active" data-lang="zh-TW">
+                        <span class="lang-name">繁體中文</span>
+                    </button>
+                    <button class="mobile-lang-btn" data-lang="en">
+                        <span class="lang-name">English</span>
+                    </button>
+                    <button class="mobile-lang-btn" data-lang="ja">
+                        <span class="lang-name">日本語</span>
+                    </button>
+                    <button class="mobile-lang-btn" data-lang="ko">
+                        <span class="lang-name">한국어</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="mobile-menu-divider"></div>
+            
+            <!-- Settings Section -->
+            <div class="mobile-menu-section">
+                <h3 class="mobile-section-title">一般設定</h3>
+                <div class="mobile-menu-item" id="mobileTextSizeBtn">
+                    <div class="menu-item-left">
+                        <span class="material-symbols-outlined">format_size</span>
+                        <span>文字大小</span>
+                    </div>
+                    <span class="menu-item-status" id="mobileTextSizeLabel">中</span>
+                </div>
+                
+                <div class="mobile-menu-item" id="mobileVoiceBtn">
+                    <div class="menu-item-left">
+                        <span class="material-symbols-outlined">volume_up</span>
+                        <span>語音回應</span>
+                    </div>
+                    <div class="toggle-switch active">
+                        <div class="toggle-knob"></div>
+                    </div>
+                </div>
+                
+                <div class="mobile-menu-item" id="mobileTypingBtn">
+                    <div class="menu-item-left">
+                        <span class="material-symbols-outlined">keyboard</span>
+                        <span>打字模式</span>
+                    </div>
+                    <div class="toggle-switch">
+                        <div class="toggle-knob"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mobile-menu-divider"></div>
+            
+            <!-- Actions Section -->
+            <div class="mobile-menu-section">
+                <div class="mobile-action-buttons">
+                    <button class="mobile-action-btn warning" id="mobileClearChatBtn">
+                        <span class="material-symbols-outlined">refresh</span>
+                        <span>清空對話</span>
+                    </button>
+                    <button class="mobile-action-btn primary" id="mobileHomeBtn">
+                        <span class="material-symbols-outlined">home</span>
+                        <span>回到首頁</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
